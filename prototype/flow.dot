@@ -34,7 +34,7 @@ digraph triage {
 
     node [shape=note, color="#4B5563", fontsize=15];
     inel   [fillcolor="#FEE2E2", label=<<b>Ineligible</b><br/><font point-size="14">explicit gate fail; not scored</font>>];
-    flag   [fillcolor="#FEF9C3", label=<<b>Flagged</b><br/><font point-size="14">held for a human; provisional score,<br/>no rank</font>>];
+    flag   [fillcolor="#FEF9C3", label=<<b>Flagged</b><br/><font point-size="14">held for a human; no rank, score null<br/>(provisional total in the reason)</font>>];
     ranked [fillcolor="#DCFCE7", label=<<b>Ranked list</b><br/><font point-size="14">rank 1..n, each with<br/>a one-line reason</font>>];
 
     // Row 1 (left to right), row 2 (right to left), row 3 outcomes

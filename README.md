@@ -10,10 +10,10 @@
 
 <!--
 Candidate disagreement / correction points that actually came up while building this (pick one, write it in your own words, then delete this comment):
-1. Temperature 0: the plan locked "temperature 0" for extraction. The current API docs show that Claude 4.7+ models accept only default sampling and that API version 2026-10-21 rejects the parameter outright. So it was dropped, and repeatability rests on the file-hash cache plus human-confirmed, stored facts instead.
+1. Temperature 0: the plan locked "temperature 0" for extraction, but the small model chosen for this step doesn't accept it. The design now uses temperature 0 only where the pinned model supports it, and repeatability rests on the file-hash cache, stored human-confirmed facts and deterministic scoring instead.
 2. Scanner keywords vs leak check: the plan listed a scanner keyword that its own leak check bans from the repo. The regex was written as a pattern (pre[\s-]?approv...) so the scanner still catches it without the literal string being committed.
 3. Expected totals: the plan's table (E 84.8035, C 77.0608) summed sub-scores already rounded to 4 dp. The code keeps full precision (84.8034, 77.0609); the published 1-decimal scores are identical.
-4. Flagged bids get a provisional score, while the brief's example shows a flagged entry with score null. The plan's choice was kept (the reviewer sees where each bid would land), but an automated checker could expect null.
+4. Flagged bids: the first version put a provisional score in ranking.json for flagged bids. I changed it to score null to match the brief's example format, keeping the provisional total in the reason text and the breakdown table.
 5. Reasons: the plan's suggested wording (e.g. "second-lowest eligible price") was not copied. The template only mentions criteria where a bid leads or is uniquely weakest, so every reason is generated from the numbers.
 6. Team-and-approach items that are not stated count as "no credit" without a flag (unlike missing price, weeks or experience); otherwise every bid lacking a monitoring plan would be held for review.
 7. Model: the AI coding assistant's default was the largest model; the design uses the small current model for cost, since the task is extraction only.
@@ -43,8 +43,8 @@ AI does one thing: it reads each proposal into a fixed set of facts, each with a
 
 - **A:** ranked 1, 98.0
 - **E:** ranked 2, 84.8
-- **C:** flagged, provisional 77.1 (embedded instruction aimed at automated reviewers; held for review)
-- **D:** flagged, provisional 69.8 (no completion time, so the 16-week limit can't be confirmed)
+- **C:** flagged, score null; provisional 77.1 in the reason (embedded instruction aimed at automated reviewers; held for review)
+- **D:** flagged, score null; provisional 69.8 in the reason (no completion time, so the 16-week limit can't be confirmed)
 - **B:** ineligible, not scored (licence held by a subcontractor to be confirmed after award, not by the bidder)
 
 ## Assumptions
@@ -55,7 +55,7 @@ AI does one thing: it reads each proposal into a fixed set of facts, each with a
 - A "monitoring plan" means monitoring the system's performance after installation. Weekly progress reports during construction do not count.
 - A "named project lead" is accepted as stated, even when the proposal gives a role rather than a person's name, unless it says the lead will be assigned later.
 - Missing price, timeline or experience → 0 for that criterion and the bid is flagged. Missing team items earn no credit but are not flagged.
-- Flagged bids carry a provisional score so the reviewer sees where they would land; they get no rank until a person clears the flag.
+- Flagged bids get `"score": null` and no rank in `ranking.json`, matching the brief's format. Their provisional total is still computed, printed in the breakdown and stated in the reason, so the reviewer sees where they would land once a person clears the flag.
 - A licence held by a subcontractor (rather than the bidder) fails the licence gate. A gate fact that is missing or unclear flags the bid; it never auto-rejects.
 - A price above the ceiling or a schedule over 16 weeks scores 0 for that criterion and flags the bid; a person decides.
 - Licence numbers are only checked for being stated. A real licence-registry lookup is a human or integration step.

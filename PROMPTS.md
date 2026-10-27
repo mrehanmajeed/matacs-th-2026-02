@@ -10,7 +10,7 @@ The blocks below are exactly what is sent. `prototype/extract.py` reads the syst
 - **Model:** pinned through config (`ANTHROPIC_MODEL`, default `claude-haiku-5-5`, a small, low-cost model suited to extraction). The audit log stores the model id used for every call.
 - **One call per proposal.** Results are cached by file hash + prompt hash + model, so re-running the same file never calls the AI again.
 - **Structured output:** `output_config.format` with the JSON schema in section (d). The API constrains the reply to that schema, and the code validates it again with `jsonschema`.
-- **Sampling:** temperature is **not sent**. Current Claude models accept only the default sampling, and API version 2026-10-21 rejects the parameter, so "temperature 0" is not available. Repeatability comes from the pinned model and prompt version, the schema, the hash cache, and storing the human-confirmed facts (see WRITEUP Q2).
+- **Sampling:** temperature 0 where the pinned model supports it, otherwise the model's default (`ANTHROPIC_TEMPERATURE=0` turns it on in `extract.py`). Repeatability does not depend on it: it rests on the file-hash cache, the stored human-confirmed facts and deterministic scoring (see WRITEUP Q2).
 - **max_tokens:** 16000. Any stop reason other than `end_turn` (e.g. `max_tokens`, `refusal`) means the output is discarded and the file goes to a human.
 
 ## (b) System prompt

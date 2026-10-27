@@ -11,7 +11,7 @@ AI reads each proposal and pulls out the facts, each backed by a quote. Plain ru
 
 ## 2. Consistency and explainability
 
-- The AI step uses a pinned model, a versioned prompt (hash stored) and output forced into a JSON schema, re-checked in code. Current Claude models no longer allow temperature 0, so the design doesn't rely on it.
+- The AI step uses a pinned model, a versioned prompt (hash stored) and output forced into a JSON schema, re-checked in code. Temperature is 0 where the pinned model supports it, otherwise the default; repeatability rests on the file-hash cache, stored human-confirmed facts and deterministic scoring.
 - Facts are cached by file hash, so ranking the same files twice reuses the same facts, and plain-code scoring gives an identical result.
 - Honest caveat: a fresh re-extraction could read an ambiguous sentence differently, which is why facts are human-confirmed and stored, and ranking always uses them.
 - Fixed tie-breaks: higher unrounded total, then experience score, then lower price, then proposal letter.
@@ -37,8 +37,8 @@ AI reads each proposal and pulls out the facts, each backed by a quote. Plain ru
 
 - **Wrong extraction** → every fact carries its quote, reviewed at checkpoint 1 before any score.
 - **Made-up facts** → each quote must appear word for word in the document, or the fact is unverified and flagged; the AI must say "not stated" rather than guess.
-- **Prompt injection or manipulation** → proposal text is marked as untrusted data, the AI never scores, and a separate rule scan looks for such text. C contains a note asking to be ranked first: it is flagged, the note has no effect, and C is scored on its facts only (provisional 77.1, would place 3rd).
-- **Missing information treated as "no"** → "not stated" is its own status, never "false"; a missing requirement flags rather than rejects. D gives no completion time, so it is flagged with timeline scored 0, not dropped or guessed.
+- **Prompt injection or manipulation** → proposal text is marked as untrusted data, the AI never scores, and a separate rule scan looks for such text. C contains a note asking to be ranked first: it is flagged, the note has no effect, and C is scored on its facts only (provisional 77.1, would place 3rd; shown in the reason, score left null until a person clears it).
+- **Missing information treated as "no"** → "not stated" is its own status, never "false"; a missing requirement flags rather than rejects. D gives no completion time, so it is flagged with timeline scored 0 (provisional 69.8), not dropped or guessed.
 - **Price-led bias or skipped gates** → gates run first and ineligible bids are left out of the comparison pool. B is cheapest and fastest, but its licence belongs to a subcontractor to be confirmed after award, so it is ineligible and its price doesn't shift other scores.
 - **Bias from company names or marketing** → scoring sees only facts, never names; marketing claims are listed as unsupported and score nothing; names can be hidden from reviewers until award.
 - **Prices that aren't like-for-like** → price inclusions are extracted. A includes permits and utility connection; others don't say, so the reviewer confirms inclusions before award.

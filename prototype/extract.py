@@ -129,6 +129,8 @@ def main():
     import jsonschema
 
     model = env.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
+    # Temperature 0 only where the pinned model supports it (set ANTHROPIC_TEMPERATURE=0); otherwise model default.
+    sampling = {"temperature": float(env["ANTHROPIC_TEMPERATURE"])} if env.get("ANTHROPIC_TEMPERATURE") else {}
     criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
     system, template = load_prompts()
     schema = build_schema(criteria)
@@ -159,7 +161,7 @@ def main():
                 resp = client.messages.create(
                     model=model, max_tokens=16000, system=system,
                     messages=[{"role": "user", "content": render_user(template, criteria, pid, text)}],
-                    output_config={"format": {"type": "json_schema", "schema": schema}})
+                    output_config={"format": {"type": "json_schema", "schema": schema}}, **sampling)
             except anthropic.APIError as e:
                 print(f"{path.name}: API error, skipped: {e}")
                 continue

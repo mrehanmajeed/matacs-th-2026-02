@@ -145,7 +145,7 @@ def triage(criteria, facts):
             place = 1 + sum(rows[j]["total"] > r["total"] for j in ranked)
             reason = "Held for human review: " + "; ".join(r["flags"])
             reason += f"; strongest point{'s' if len(strong) > 1 else ''}: {join(strong)}" if strong else ""
-            reason += f"; provisional score {r['total']:.1f} would place {ordinal(place)}"
+            reason += f"; provisional {r['total']:.1f}, would place {ordinal(place)}; not ranked until resolved"
         r["reason"] = reason + "."
     for k in ineligible:
         p, r = props[k], rows[k]
@@ -165,8 +165,9 @@ def triage(criteria, facts):
 
 
 def to_output(rows):
+    # Only ranked bids get a score; a flagged bid's provisional total stays in its reason and the breakdown.
     return [{"proposal": r["proposal"], "rank": r["rank"], "status": r["status"],
-             "score": None if r["status"] == "ineligible" else round(r["total"], 1), "reason": r["reason"]}
+             "score": round(r["total"], 1) if r["status"] == "ranked" else None, "reason": r["reason"]}
             for r in rows]
 
 

@@ -26,7 +26,15 @@ def test_reproduces_ranking_json_exactly(tmp_path):
         assert (rows[k]["rank"], rows[k]["status"]) == (rank, status)
         if total is not None:
             assert rows[k]["total"] == pytest.approx(total, abs=0.05)
-    assert [r["proposal"] for r in to_output(triage(CRITERIA, FACTS))] == ["A", "E", "C", "D", "B"]
+    out = to_output(triage(CRITERIA, FACTS))
+    assert [r["proposal"] for r in out] == ["A", "E", "C", "D", "B"]
+    assert [r["score"] for r in out] == [98.0, 84.8, None, None, None]  # flagged and ineligible: score null
+    reasons = {r["proposal"]: r["reason"] for r in out}
+    assert "instruction" in reasons["C"] and "ignored" in reasons["C"] and "provisional 77.1" in reasons["C"]
+    assert "no completion time" in reasons["D"] and "provisional 69.8" in reasons["D"]
+    assert "licence check" in reasons["B"] and "despite the lowest price" in reasons["B"]
+    assert all("
+" not in r for r in reasons.values())
 
 
 def test_b_fails_licence_gate():
