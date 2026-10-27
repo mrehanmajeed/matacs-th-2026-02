@@ -160,6 +160,7 @@ def main():
     schema = build_schema(criteria)
     rendered = render_user(template, criteria, "{{PROPOSAL_ID}}", "{{PROPOSAL_TEXT}}")  # includes fields + constraints
     prompt_sha = hashlib.sha256((system + rendered + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
+    cache_sha = hashlib.sha256((system + template + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
     out = Path(a.out)
     (out / "cache").mkdir(parents=True, exist_ok=True)
     client = anthropic.Anthropic(api_key=key)
@@ -186,8 +187,9 @@ def main():
         intake = [f"only {len(text.split())} words of text; check the file or OCR"] if len(text.split()) < MIN_WORDS else []
         hits = scan(text)
 
-        # Same file + same prompt + same model -> reuse the stored output instead of calling the AI again.
-        cache = out / "cache" / f"{sha[:16]}_{prompt_sha[:12]}_{model}.json"
+        # Same file + same prompt wording and output schema + same model -> reuse the stored output instead of
+        # calling the AI again. Thresholds and weights are left out of this key: they don't change what is read.
+        cache = out / "cache" / f"{sha[:16]}_{cache_sha[:12]}_{model}.json"
         hit = error is None and cache.exists()
         if hit:
             raw = cache.read_text(encoding="utf-8")
