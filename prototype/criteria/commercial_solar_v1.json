@@ -98,8 +98,10 @@
       "method": "higher_better",
       "fields": ["panel_warranty_years", "workmanship_warranty_years"],
       "phrases": {
-        "best": "the longest warranties of any {eligible}bid",
-        "worst": "the shortest warranties of any {eligible}bid",
+        "best:panel_warranty_years": "the longest {eligible}panel warranty ({v} years)",
+        "best:workmanship_warranty_years": "the longest {eligible}workmanship warranty ({v} years)",
+        "worst:panel_warranty_years": "the shortest {eligible}panel warranty ({v} years)",
+        "worst:workmanship_warranty_years": "the shortest {eligible}workmanship warranty ({v} years)",
         "missing": "a warranty term is not stated (that part scored 0)"
       }
     },

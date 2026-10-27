@@ -80,11 +80,40 @@ def join(items):
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def phrase(crit, kind, proposal, cons, eligible=False):
-    """Reason phrase for one criterion; eligible=True says the claim only holds within the eligible pool."""
-    v = fact(proposal, crit["fields"][0])[0]
-    limit = cons.get(crit.get("limit"))
-    return crit["phrases"][kind].format(v=v, limit=limit, eligible="eligible " if eligible else "")
+def phrase(crit, kind, proposal, cons, eligible=False, field=None):
+    """Reason phrase for one criterion (or one field of it, e.g. "best:workmanship_warranty_years");
+    eligible=True says the claim only holds within the eligible pool."""
+    field = field or crit["fields"][0]
+    template = crit["phrases"].get(f"{kind}:{field}", crit["phrases"].get(kind))
+    return template.format(v=fact(proposal, field)[0], limit=cons.get(crit.get("limit")),
+                           eligible="eligible " if eligible else "")
+
+
+def strict_leader(members, field, higher):
+    """The one bid with the strictly highest (or lowest) stated value on a field; None on a tie."""
+    vals = {k: fact(p, field)[0] for k, p in members.items() if fact(p, field)[1]}
+    if len(vals) < 2:
+        return None
+    best = (max if higher else min)(vals.values())
+    winners = [k for k, v in vals.items() if v == best]
+    return winners[0] if len(winners) == 1 else None
+
+
+def flag_texts(crit, kind, proposal, cons):
+    """Flags for a criterion that scored 0, naming the real cause. An unverified fact is already flagged with its
+    cause, an unclear one says so, and only a fact that is truly not stated gets the 'missing' phrase."""
+    if kind == "over_limit":
+        return [phrase(crit, "over_limit", proposal, cons)]
+    out = []
+    for field in crit["fields"]:
+        f = proposal["facts"].get(field, {})
+        if fact(proposal, field)[1] or f.get("verified", True) is False:
+            continue
+        text = (f"{field} is unclear and needs a person to confirm it ({crit['key']} scored 0)"
+                if f.get("status") == "unclear" else phrase(crit, "missing", proposal, cons))
+        if text not in out:
+            out.append(text)
+    return out
 
 
 def triage(criteria, facts):
@@ -113,20 +142,12 @@ def triage(criteria, facts):
             if f.get("verified", True) is False:
                 r["flags"].append(f"{field} unverified ({', '.join(f.get('verification_issues', ['check failed']))})")
 
-    leaders = {}  # criterion key -> (best letters, unique-worst letter) among unflagged pool members
-    overall = {c["key"]: score_criterion(props, c, cons) for c in criteria["weighted"]}  # incl. ineligible bids
     for crit in criteria["weighted"]:
-        scores = score_criterion(pool, crit, cons)
-        for k, (sub, flag) in scores.items():
+        for k, (sub, flag) in score_criterion(pool, crit, cons).items():
             rows[k]["sub"][crit["key"]] = sub
             rows[k]["points"][crit["key"]] = crit["weight"] * sub
             if flag:
-                rows[k]["flags"].append(phrase(crit, flag, props[k], cons))
-        clean = {k: s for k, (s, flag) in scores.items() if flag is None}
-        hi, lo = max(clean.values(), default=0), min(clean.values(), default=0)
-        lows = [k for k, s in clean.items() if math.isclose(s, lo)]
-        leaders[crit["key"]] = ({k for k, s in clean.items() if hi > 0 and math.isclose(s, hi)},
-                                lows[0] if len(lows) == 1 and len(clean) > 1 and not math.isclose(hi, lo) else None)
+                rows[k]["flags"] += flag_texts(crit, flag, props[k], cons)
 
     for k in pool:
         rows[k]["total"] = sum(rows[k]["points"].values())
@@ -150,24 +171,34 @@ def triage(criteria, facts):
     for k in flagged:
         rows[k]["provisional_position"] = eligible.index(k) + 1
 
-    # Template reasons, built only from the breakdown above.
+    # Template reasons, built only from the facts and breakdown above.
     n_gates = len(criteria["mandatory"])
-    passes = f"Passes {'both' if n_gates == 2 else f'all {n_gates}'} mandatory checks"
-    def outdone(k, key, worse):
-        """True if an ineligible bid beats k overall on this criterion (or is worse, for 'worst' claims)."""
-        mine = overall[key][k][0]
-        return any(overall[key][j][1] is None and not math.isclose(overall[key][j][0], mine)
-                   and (overall[key][j][0] < mine if worse else overall[key][j][0] > mine) for j in ineligible)
+    passes = f"passes {'both' if n_gates == 2 else f'all {n_gates}'} mandatory checks"
+
+    def claims(k, kind):
+        """Superlatives only where k strictly leads ('best') or trails ('worst') the eligible bids on a field;
+        'eligible' is added when an ineligible bid goes further overall. A full checklist is not a superlative."""
+        out = []
+        for c in criteria["weighted"]:
+            if c["method"] == "checklist":
+                if kind == "best" and math.isclose(rows[k]["sub"][c["key"]], 1):
+                    out.append(phrase(c, "best", props[k], cons))
+                continue
+            higher = (c["method"] == "higher_better") == (kind == "best")
+            for f in c["fields"]:
+                if strict_leader(pool, f, higher) == k:
+                    v = fact(props[k], f)[0]
+                    beyond = any(fact(props[j], f)[1] and (fact(props[j], f)[0] > v if higher else fact(props[j], f)[0] < v)
+                                 for j in ineligible)
+                    out.append(phrase(c, kind, props[k], cons, beyond, f))
+        return out
 
     for k in ranked + flagged:
         r = rows[k]
-        strong = [phrase(c, "best", props[k], cons, outdone(k, c["key"], False))
-                  for c in criteria["weighted"] if k in leaders[c["key"]][0]]
-        weak = [phrase(c, "worst", props[k], cons, outdone(k, c["key"], True))
-                for c in criteria["weighted"] if leaders[c["key"]][1] == k]
+        strong, weak = claims(k, "best"), claims(k, "worst")
         if r["status"] == "ranked":
-            reason = f"{passes}; " + (join(strong) if strong else "does not lead on any single criterion")
-            reason += f", but {join(weak)}" if weak else ""
+            reason = f"Ranked {ordinal(r['rank'])} because it {passes}" + (f" and has {join(strong)}" if strong else "")
+            reason += (f", but {join(weak)}" if strong else f", but has {join(weak)}") if weak else ""
         else:
             reason = "Held for review: " + "; ".join(r["flags"] + r["review_notes"])
             reason += f"; strongest point{'s' if len(strong) > 1 else ''}: {join(strong)}" if strong else ""
@@ -181,12 +212,9 @@ def triage(criteria, facts):
             if r["gates"][g["key"]] == "fail":
                 notes = [p["facts"][q["field"]].get("note") for q in g["require"] if p["facts"].get(q["field"], {}).get("note")]
                 fails.append(f"Fails the mandatory {g['short']} check" + (f": {notes[0]}" if notes else ""))
-        # What it would have led on against every bid (an overall claim), to make clear those were not counted.
-        despite = []
-        for c in criteria["weighted"]:
-            sub, flag = overall[c["key"]][k]
-            if flag is None and c["method"] != "checklist" and math.isclose(sub, 1):
-                despite.append(phrase(c, "best", p, cons))
+        # What it strictly leads on against every bid (an overall claim), to make clear those were not counted.
+        despite = [phrase(c, "best", p, cons, field=f) for c in criteria["weighted"] if c["method"] != "checklist"
+                   for f in c["fields"] if strict_leader(props, f, c["method"] == "higher_better") == k]
         r["reason"] = "; ".join(fails) + "; not scored" + (f" despite {join(despite)}" if despite else "") + "."
     for k, cause in sorted(failed.items()):
         rows[k] = {"proposal": k, "gates": {}, "sub": {}, "points": {}, "flags": [f"extraction failed: {cause}"],

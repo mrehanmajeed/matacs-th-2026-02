@@ -39,7 +39,9 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     assert "licence check" in reasons["B"] and "despite the lowest price" in reasons["B"]
     assert "before the 5-year window" in reasons["C"]
     assert all("\n" not in r for r in reasons.values())  # one line each
-    limits = {"A": 30, "E": 30, "C": 35, "D": 30, "B": 30}
+    assert reasons["A"].startswith("Ranked 1st because it passes both mandatory checks and has")
+    assert "the longest workmanship warranty (12 years)" in reasons["E"] and "warranties" not in reasons["E"]
+    limits = {"A": 35, "E": 35, "C": 35, "D": 30, "B": 30}
     words = {k: len(r.split()) for k, r in reasons.items()}
     assert all(words[k] <= n for k, n in limits.items()), words
 
@@ -137,3 +139,15 @@ def test_weight_only_edit_rescores_but_fact_field_change_refuses(tmp_path):
     v3["fields"]["completion_weeks"]["range"] = [1, 104]  # a fact field changed
     refused = run(v3)
     assert refused.returncode != 0 and "Refusing" in refused.stderr
+
+
+def test_flag_names_real_cause_not_missing():
+    facts = copy.deepcopy(FACTS)
+    facts["proposals"]["A"]["facts"]["total_price_cad"].update(
+        verified=False, verification_issues=["price quoted in a non-CAD currency"])
+    facts["proposals"]["E"]["facts"]["completion_weeks"]["status"] = "unclear"
+    rows = {r["proposal"]: r for r in triage(CRITERIA, facts)}
+    assert any("non-CAD" in f for f in rows["A"]["flags"])
+    assert not any("no total price" in f for f in rows["A"]["flags"])
+    assert any("completion_weeks is unclear" in f for f in rows["E"]["flags"])
+    assert not any("no completion time" in f for f in rows["E"]["flags"])
