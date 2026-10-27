@@ -130,6 +130,9 @@ def triage(criteria, facts):
         rows[k]["rank"] = i
     for k in flagged + ineligible:
         rows[k]["rank"] = None
+    eligible = sorted(pool, key=sort_key)  # ranked + flagged, same tie-breaks: provisional positions
+    for k in flagged:
+        rows[k]["provisional_position"] = eligible.index(k) + 1
 
     # Template reasons, built only from the breakdown above.
     n_gates = len(criteria["mandatory"])
@@ -142,10 +145,10 @@ def triage(criteria, facts):
             reason = f"{passes}; " + (join(strong) if strong else "does not lead on any single criterion")
             reason += f", but {join(weak)}" if weak else ""
         else:
-            place = 1 + sum(rows[j]["total"] > r["total"] for j in ranked)
             reason = "Held for human review: " + "; ".join(r["flags"])
             reason += f"; strongest point{'s' if len(strong) > 1 else ''}: {join(strong)}" if strong else ""
-            reason += f"; provisional {r['total']:.1f}, would place {ordinal(place)}; not ranked until resolved"
+            reason += (f"; provisional {r['total']:.1f}, {ordinal(r['provisional_position'])} of {len(eligible)}"
+                       " eligible bids; not ranked until resolved")
         r["reason"] = reason + "."
     for k in ineligible:
         p, r = props[k], rows[k]

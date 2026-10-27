@@ -36,6 +36,14 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     assert all("\n" not in r for r in reasons.values())  # one line each
 
 
+def test_provisional_position_counts_all_eligible_bids():
+    rows = {r["proposal"]: r for r in triage(CRITERIA, FACTS)}
+    assert (rows["C"]["provisional_position"], rows["D"]["provisional_position"]) == (3, 4)
+    reasons = {r["proposal"]: r["reason"] for r in to_output(rows.values())}
+    assert "provisional 77.1, 3rd of 4 eligible bids; not ranked until resolved" in reasons["C"]
+    assert "provisional 69.8, 4th of 4 eligible bids; not ranked until resolved" in reasons["D"]
+
+
 def test_b_fails_licence_gate():
     b = FACTS["proposals"]["B"]
     assert gate(b, CRITERIA["mandatory"][0], CRITERIA["constraints"]) == "fail"
