@@ -32,6 +32,9 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     reasons = {r["proposal"]: r["reason"] for r in out}
     assert "instruction" in reasons["C"] and "ignored" in reasons["C"] and "provisional 77.1" in reasons["C"]
     assert "no completion time" in reasons["D"] and "provisional 69.8" in reasons["D"]
+    assert "strongest point: the lowest eligible price" in reasons["D"]  # B is cheaper overall but ineligible
+    assert "the fastest eligible schedule (12 weeks)" in reasons["A"]  # B is faster overall
+    assert "the most qualifying experience of any bid (14 installs)" in reasons["A"]  # no one beats A here
     assert "licence check" in reasons["B"] and "despite the lowest price" in reasons["B"]
     assert all("\n" not in r for r in reasons.values())  # one line each
 

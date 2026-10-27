@@ -69,10 +69,11 @@ def join(items):
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def phrase(crit, kind, proposal, cons):
+def phrase(crit, kind, proposal, cons, eligible=False):
+    """Reason phrase for one criterion; eligible=True says the claim only holds within the eligible pool."""
     v = fact(proposal, crit["fields"][0])[0]
     limit = cons.get(crit.get("limit"))
-    return crit["phrases"][kind].format(v=v, limit=limit)
+    return crit["phrases"][kind].format(v=v, limit=limit, eligible="eligible " if eligible else "")
 
 
 def triage(criteria, facts):
@@ -99,6 +100,7 @@ def triage(criteria, facts):
                 r["flags"].append(f"the evidence for {field} was not found verbatim in the source")
 
     leaders = {}  # criterion key -> (best letters, unique-worst letter) among unflagged pool members
+    overall = {c["key"]: score_criterion(props, c, cons) for c in criteria["weighted"]}  # incl. ineligible bids
     for crit in criteria["weighted"]:
         scores = score_criterion(pool, crit, cons)
         for k, (sub, flag) in scores.items():
@@ -137,10 +139,18 @@ def triage(criteria, facts):
     # Template reasons, built only from the breakdown above.
     n_gates = len(criteria["mandatory"])
     passes = f"Passes {'both' if n_gates == 2 else f'all {n_gates}'} mandatory checks"
+    def outdone(k, key, worse):
+        """True if an ineligible bid beats k overall on this criterion (or is worse, for 'worst' claims)."""
+        mine = overall[key][k][0]
+        return any(overall[key][j][1] is None and not math.isclose(overall[key][j][0], mine)
+                   and (overall[key][j][0] < mine if worse else overall[key][j][0] > mine) for j in ineligible)
+
     for k in ranked + flagged:
         r = rows[k]
-        strong = [phrase(c, "best", props[k], cons) for c in criteria["weighted"] if k in leaders[c["key"]][0]]
-        weak = [phrase(c, "worst", props[k], cons) for c in criteria["weighted"] if leaders[c["key"]][1] == k]
+        strong = [phrase(c, "best", props[k], cons, outdone(k, c["key"], False))
+                  for c in criteria["weighted"] if k in leaders[c["key"]][0]]
+        weak = [phrase(c, "worst", props[k], cons, outdone(k, c["key"], True))
+                for c in criteria["weighted"] if leaders[c["key"]][1] == k]
         if r["status"] == "ranked":
             reason = f"{passes}; " + (join(strong) if strong else "does not lead on any single criterion")
             reason += f", but {join(weak)}" if weak else ""
@@ -157,10 +167,10 @@ def triage(criteria, facts):
             if r["gates"][g["key"]] == "fail":
                 notes = [p["facts"][q["field"]].get("note") for q in g["require"] if p["facts"].get(q["field"], {}).get("note")]
                 fails.append(f"Fails the mandatory {g['short']} check" + (f": {notes[0]}" if notes else ""))
-        # What it would have led on against every bid, to make clear those strengths were not counted.
+        # What it would have led on against every bid (an overall claim), to make clear those were not counted.
         despite = []
         for c in criteria["weighted"]:
-            sub, flag = score_criterion(props, c, cons)[k]
+            sub, flag = overall[c["key"]][k]
             if flag is None and c["method"] != "checklist" and math.isclose(sub, 1):
                 despite.append(phrase(c, "best", p, cons))
         r["reason"] = "; ".join(fails) + "; not scored" + (f" despite {join(despite)}" if despite else "") + "."

@@ -58,8 +58,8 @@
       "method": "higher_better",
       "fields": ["qualifying_installs"],
       "phrases": {
-        "best": "the most qualifying experience ({v} installs)",
-        "worst": "the fewest qualifying installs ({v}) among eligible bids",
+        "best": "the most qualifying experience of any {eligible}bid ({v} installs)",
+        "worst": "the fewest qualifying installs ({v}) among {eligible}bids",
         "missing": "no qualifying install count is stated (experience scored 0)"
       }
     },
@@ -71,8 +71,8 @@
       "fields": ["total_price_cad"],
       "limit": "budget_ceiling_cad",
       "phrases": {
-        "best": "the lowest price",
-        "worst": "the highest price",
+        "best": "the lowest {eligible}price",
+        "worst": "the highest {eligible}price",
         "missing": "no total price is stated (price scored 0)",
         "over_limit": "the price is above the {limit} budget ceiling (price scored 0)"
       }
@@ -85,8 +85,8 @@
       "fields": ["completion_weeks"],
       "limit": "max_weeks",
       "phrases": {
-        "best": "the fastest schedule ({v} weeks)",
-        "worst": "the slowest schedule ({v} weeks)",
+        "best": "the fastest {eligible}schedule ({v} weeks)",
+        "worst": "the slowest {eligible}schedule ({v} weeks)",
         "missing": "no completion time is stated, so the {limit}-week requirement cannot be confirmed (timeline scored 0)",
         "over_limit": "the schedule is longer than {limit} weeks (timeline scored 0)"
       }
@@ -98,8 +98,8 @@
       "method": "higher_better",
       "fields": ["panel_warranty_years", "workmanship_warranty_years"],
       "phrases": {
-        "best": "the longest combined panel and workmanship warranties",
-        "worst": "the shortest warranties",
+        "best": "the longest combined panel and workmanship warranties of any {eligible}bid",
+        "worst": "the shortest warranties of any {eligible}bid",
         "missing": "a warranty term is not stated (that part scored 0)"
       }
     },
@@ -111,7 +111,7 @@
       "fields": ["named_lead", "crew_identified", "safety_plan", "monitoring_plan"],
       "phrases": {
         "best": "a complete team, safety and monitoring plan",
-        "worst": "the least complete team and approach"
+        "worst": "the least complete team and approach of any {eligible}bid"
       }
     }
   ],
