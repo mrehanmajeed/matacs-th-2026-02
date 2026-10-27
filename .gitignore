@@ -1,0 +1,10 @@
+.env
+__pycache__/
+.venv/
+.pytest_cache/
+prototype/samples_local/
+prototype/outputs_local/
+*brief*.pdf
+.claude/
+CLAUDE.md
+.DS_Store
