@@ -151,3 +151,13 @@ def test_flag_names_real_cause_not_missing():
     assert not any("no total price" in f for f in rows["A"]["flags"])
     assert any("completion_weeks is unclear" in f for f in rows["E"]["flags"])
     assert not any("no completion time" in f for f in rows["E"]["flags"])
+
+
+def test_non_cad_currency_is_caught():
+    from extract import validate
+    for quote in ("US$ 238,000", "USD 238,000", "238,000 USD", "€238,000"):
+        data = {"facts": {"total_price_cad": {"value": 238000, "status": "stated", "evidence": quote, "note": None}}}
+        f = validate(data, f"Our price is {quote}.", CRITERIA)["facts"]["total_price_cad"]
+        assert f["verified"] is False and f["verification_issues"] == ["price quoted in a non-CAD currency"], quote
+    data = {"facts": {"total_price_cad": {"value": 238000, "status": "stated", "evidence": "$238,000 CAD", "note": None}}}
+    assert "verified" not in validate(data, "Our price is $238,000 CAD.", CRITERIA)["facts"]["total_price_cad"]

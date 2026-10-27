@@ -24,7 +24,7 @@ ROOT = HERE.parent
 PROMPT_VERSION = "extract-v1"
 DEFAULT_MODEL = "claude-haiku-5-5"  # verified on platform.claude.com models overview, 2026-10-27
 MIN_WORDS = 40  # below this the text is probably a failed extraction or a bad scan
-FOREIGN_CURRENCY = re.compile(r"\b(USD|US\$|EUR|GBP)\b|[€£]")
+FOREIGN_CURRENCY = re.compile(r"\b(USD|EUR|GBP)\b|\bUS\s?\$|[€£]")
 VALUE_TYPES = {"boolean": {"type": "boolean"}, "number": {"type": "number"}, "integer": {"type": "integer"},
                "string": {"type": "string"},
                "licence_holder": {"type": "string", "enum": ["bidder", "subcontractor", "other"]}}
@@ -165,23 +165,33 @@ def main():
     client = anthropic.Anthropic(api_key=key)
     proposals, seen = {}, {}
 
+    def log(record):
+        with open(out / "audit.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                 "user": getpass.getuser(), **record}) + "\n")
+
     for path in files:
         raw_bytes = path.read_bytes()
         sha = hashlib.sha256(raw_bytes).hexdigest()
         if sha in seen:
-            print(f"{path.name}: duplicate of {seen[sha]}, skipped")
+            log({"file": path.name, "file_sha256": sha, "duplicate_of": seen[sha]})
+            print(f"{path.name}: duplicate of {seen[sha]}, skipped (logged)")
             continue
         seen[sha] = path.name
-        pid, text = path.stem, raw_bytes.decode("utf-8")
+        pid, raw, error = path.stem, None, None
+        try:
+            text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            text, error = raw_bytes.decode("utf-8", errors="replace"), "the file is not valid UTF-8 text"
         intake = [f"only {len(text.split())} words of text; check the file or OCR"] if len(text.split()) < MIN_WORDS else []
         hits = scan(text)
 
         # Same file + same prompt + same model -> reuse the stored output instead of calling the AI again.
         cache = out / "cache" / f"{sha[:16]}_{prompt_sha[:12]}_{model}.json"
-        hit, raw, error = cache.exists(), None, None
+        hit = error is None and cache.exists()
         if hit:
             raw = cache.read_text(encoding="utf-8")
-        else:
+        elif error is None:
             try:
                 resp = client.messages.create(
                     model=model, max_tokens=16000, system=system,
@@ -190,21 +200,21 @@ def main():
             except anthropic.APIError as e:
                 error = f"API error ({type(e).__name__})"
             else:
+                reply = next((b.text for b in resp.content if b.type == "text"), None)
                 if resp.stop_reason != "end_turn":
                     error = f"the model stopped early ({resp.stop_reason})"
+                elif reply is None:
+                    error = "the AI reply contained no text"
                 else:
-                    raw = next(b.text for b in resp.content if b.type == "text")
+                    raw = reply
                     cache.write_text(raw, encoding="utf-8")
         proposals[pid] = to_proposal(raw, text, criteria, schema, intake, hits, error)
         error = proposals[pid].get("extraction_error")
 
-        record = {"timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(), "user": getpass.getuser(),
-                  "file": path.name, "file_sha256": sha, "criteria_version_id": criteria["criteria_version_id"],
-                  "model": model, "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_sha,
-                  "cache_hit": hit, "raw_output": raw, "error": error, "scanner_hits": hits,
-                  "validated": proposals[pid]}
-        with open(out / "audit.jsonl", "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record) + "\n")
+        log({"file": path.name, "file_sha256": sha, "criteria_version_id": criteria["criteria_version_id"],
+             "model": model, "temperature": sampling.get("temperature"), "prompt_version": PROMPT_VERSION,
+             "prompt_sha256": prompt_sha, "cache_hit": hit, "raw_output": raw, "error": error,
+             "scanner_hits": hits, "validated": proposals[pid]})
         print(f"{path.name}: " + (f"EXTRACTION FAILED ({error}); passed on as flagged" if error
                                   else f"extracted ({len(hits)} scanner hits)"))
 
