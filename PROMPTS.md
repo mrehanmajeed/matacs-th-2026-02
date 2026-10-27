@@ -6,12 +6,12 @@ The blocks below are exactly what is sent. `prototype/extract.py` reads the syst
 ## (a) Purpose and call settings
 
 - **Purpose:** turn one proposal's text into a fixed set of facts, each with a status and a verbatim evidence quote. The AI does not score, rank or decide pass/fail.
-- **Prompt version:** `extract-v1`. The audit log stores this plus a SHA-256 hash of system prompt + user template + schema, so any wording change shows up as a new version.
+- **Prompt version:** `extract-v1`. The audit log stores this plus a SHA-256 hash of the system prompt, the user prompt as rendered with this category's fields and constraints (without the proposal text), and the schema, so any wording or criteria change shows up as a new version.
 - **Model:** pinned through config (`ANTHROPIC_MODEL`, default `claude-haiku-5-5`, a small, low-cost model suited to extraction). The audit log stores the model id used for every call.
 - **One call per proposal.** Results are cached by file hash + prompt hash + model, so re-running the same file never calls the AI again.
 - **Structured output:** `output_config.format` with the JSON schema in section (d). The API constrains the reply to that schema, and the code validates it again with `jsonschema`.
 - **Sampling:** temperature 0 where the pinned model supports it, otherwise the model's default (`ANTHROPIC_TEMPERATURE=0` turns it on in `extract.py`). Repeatability does not depend on it: it rests on the file-hash cache, the stored human-confirmed facts and deterministic scoring (see WRITEUP Q2).
-- **max_tokens:** 16000. Any stop reason other than `end_turn` (e.g. `max_tokens`, `refusal`) means the output is discarded and the file goes to a human.
+- **max_tokens:** 16000. Any stop reason other than `end_turn` (e.g. `max_tokens`, `refusal`) means the output is discarded and the file is skipped with a message on screen, for a person to re-run or read by hand.
 
 ## (b) System prompt
 

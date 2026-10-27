@@ -134,7 +134,8 @@ def main():
     criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
     system, template = load_prompts()
     schema = build_schema(criteria)
-    prompt_sha = hashlib.sha256((system + template + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
+    rendered = render_user(template, criteria, "{{PROPOSAL_ID}}", "{{PROPOSAL_TEXT}}")  # includes fields + constraints
+    prompt_sha = hashlib.sha256((system + rendered + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
     out = Path(a.out)
     (out / "cache").mkdir(parents=True, exist_ok=True)
     client = anthropic.Anthropic(api_key=key)
