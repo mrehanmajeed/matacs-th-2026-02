@@ -93,6 +93,7 @@ def triage(criteria, facts):
         for note in p.get("suspicious_instructions", []):
             r["flags"].append(f"contains an embedded instruction aimed at automated reviewers ({note}); "
                               "it was ignored and the bid was scored on its stated facts only")
+        r["flags"] += [f"intake check: {note}" for note in p.get("intake_flags", [])]
         for field, f in p["facts"].items():
             if f.get("verified", True) is False:
                 r["flags"].append(f"the evidence for {field} was not found verbatim in the source")

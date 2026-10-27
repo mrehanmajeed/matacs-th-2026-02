@@ -11,6 +11,26 @@
     "reference_year": 2026,
     "min_liability_cad": 5000000
   },
+  "fields": {
+    "licence_holder": {"type": "licence_holder", "desc": "who holds the provincial electrical contractor licence for this work: bidder, subcontractor or other"},
+    "licence_number_stated": {"type": "boolean", "desc": "true if a licence number is written in the proposal"},
+    "wsib_clearance": {"type": "boolean", "desc": "true if the proposal confirms current WSIB clearance"},
+    "liability_insurance_cad": {"type": "number", "desc": "liability insurance coverage amount in CAD", "range": [0, 100000000]},
+    "qualifying_installs": {"type": "integer", "desc": "number of commercial installs of at least 100 kW completed in the last 5 years (reference year 2026)", "range": [0, 1000]},
+    "install_period": {"type": "string", "desc": "the period for those installs, exactly as written (e.g. a start year)"},
+    "min_install_kw": {"type": "number", "desc": "smallest system size (kW) the stated installs are described as", "range": [0, 100000]},
+    "total_price_cad": {"type": "number", "desc": "total proposed price in CAD", "range": [1000, 10000000]},
+    "price_inclusions": {"type": "string", "desc": "what the stated price explicitly includes (e.g. permits, utility connection)"},
+    "completion_weeks": {"type": "number", "desc": "committed completion time in weeks from award", "range": [1, 520]},
+    "panel_warranty_years": {"type": "number", "desc": "panel warranty length in years", "range": [0, 50]},
+    "workmanship_warranty_years": {"type": "number", "desc": "workmanship warranty length in years", "range": [0, 50]},
+    "named_lead": {"type": "boolean", "desc": "true if a specific, named project lead or manager is committed (a role to be assigned later is false)"},
+    "crew_identified": {"type": "boolean", "desc": "true if the delivery crew is described (e.g. its size or certification)"},
+    "crew_size": {"type": "integer", "desc": "number of crew members, if given", "range": [1, 500]},
+    "safety_plan": {"type": "boolean", "desc": "true if a site safety plan is included"},
+    "monitoring_plan": {"type": "boolean", "desc": "true if post-installation performance monitoring of the system is offered (progress reporting during construction is not monitoring)"},
+    "monitoring_months": {"type": "number", "desc": "length of the performance-monitoring period in months", "range": [0, 600]}
+  },
   "mandatory": [
     {
       "key": "M1",
