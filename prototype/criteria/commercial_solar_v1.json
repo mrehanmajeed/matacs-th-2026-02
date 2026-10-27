@@ -87,7 +87,7 @@
       "phrases": {
         "best": "the fastest {eligible}schedule ({v} weeks)",
         "worst": "the slowest {eligible}schedule ({v} weeks)",
-        "missing": "no completion time is stated, so the {limit}-week requirement cannot be confirmed (timeline scored 0)",
+        "missing": "no completion time, so the {limit}-week limit cannot be confirmed",
         "over_limit": "the schedule is longer than {limit} weeks (timeline scored 0)"
       }
     },
@@ -98,7 +98,7 @@
       "method": "higher_better",
       "fields": ["panel_warranty_years", "workmanship_warranty_years"],
       "phrases": {
-        "best": "the longest combined panel and workmanship warranties of any {eligible}bid",
+        "best": "the longest warranties of any {eligible}bid",
         "worst": "the shortest warranties of any {eligible}bid",
         "missing": "a warranty term is not stated (that part scored 0)"
       }

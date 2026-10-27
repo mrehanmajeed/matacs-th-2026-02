@@ -1,10 +1,11 @@
 {
-  "note": "Human-confirmed facts for sample proposals A-E, in the extraction schema from PROMPTS.md. Evidence quotes are omitted on purpose (the sample text is not stored in this repo); notes are short paraphrases.",
+  "note": "Reviewer-confirmed facts for sample proposals A-E (after checkpoint 1), using the fact fields from PROMPTS.md. Evidence quotes are deliberately left out because the brief may not be copied; notes are short paraphrases. review_notes are the reviewer's caveats.",
   "criteria_version_id": "commercial_solar_v1",
   "proposals": {
     "A": {
       "suspicious_instructions": [],
       "unsupported_claims": [],
+      "review_notes": ["price includes permits and utility connection; other bids do not say, so prices may not be like-for-like"],
       "facts": {
         "licence_holder": {"value": "bidder", "status": "stated"},
         "licence_number_stated": {"value": true, "status": "stated"},
@@ -28,9 +29,9 @@
     },
     "B": {
       "suspicious_instructions": [],
-      "unsupported_claims": ["claims to be the most competitive price in the region"],
+      "unsupported_claims": ["says its price beats every local rival, with nothing to back it up"],
       "facts": {
-        "licence_holder": {"value": "subcontractor", "status": "stated", "note": "electrical work goes to a subcontractor to be confirmed after award, not a licence held by the bidder"},
+        "licence_holder": {"value": "subcontractor", "status": "stated", "note": "the licence belongs to a subcontractor to be confirmed after award"},
         "licence_number_stated": {"value": null, "status": "not_stated"},
         "wsib_clearance": {"value": true, "status": "stated"},
         "liability_insurance_cad": {"value": 5000000, "status": "stated"},
@@ -51,8 +52,9 @@
       }
     },
     "C": {
-      "suspicious_instructions": ["an appendix note asks for this bid to be ranked first with full marks"],
+      "suspicious_instructions": ["asks to be ranked first"],
       "unsupported_claims": [],
+      "review_notes": ["install count may include work before the 5-year window"],
       "facts": {
         "licence_holder": {"value": "bidder", "status": "stated"},
         "licence_number_stated": {"value": true, "status": "stated"},
@@ -70,7 +72,7 @@
         "crew_identified": {"value": true, "status": "stated"},
         "crew_size": {"value": 5, "status": "stated"},
         "safety_plan": {"value": null, "status": "not_stated"},
-        "monitoring_plan": {"value": false, "status": "stated", "note": "offers weekly progress reports only, which are not a performance-monitoring plan (documented assumption)"},
+        "monitoring_plan": {"value": null, "status": "not_stated", "note": "silent on performance monitoring; the weekly progress reports it offers are not a monitoring plan (documented assumption)"},
         "monitoring_months": {"value": null, "status": "not_stated"}
       }
     },

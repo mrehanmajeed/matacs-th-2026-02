@@ -89,7 +89,8 @@ def triage(criteria, facts):
     rows = {}
     for k in sorted(props):
         gates = {g["key"]: gate(props[k], g, cons) for g in criteria["mandatory"]}
-        rows[k] = {"proposal": k, "gates": gates, "sub": {}, "points": {}, "flags": [], "total": None}
+        rows[k] = {"proposal": k, "gates": gates, "sub": {}, "points": {}, "flags": [], "total": None,
+                   "review_notes": props[k].get("review_notes", [])}
 
     # Normalisation pool: everything not explicitly failing a gate (ineligible bids never shift others' scores).
     pool = {k: props[k] for k, r in rows.items() if "fail" not in r["gates"].values()}
@@ -99,8 +100,7 @@ def triage(criteria, facts):
             if r["gates"][g["key"]] == "unconfirmed":
                 r["flags"].append(f"the {g['short']} check could not be confirmed")
         for note in p.get("suspicious_instructions", []):
-            r["flags"].append(f"contains an embedded instruction aimed at automated reviewers ({note}); "
-                              "it was ignored and the bid was scored on its stated facts only")
+            r["flags"].append(f"embedded instruction ignored ({note})")
         r["flags"] += [f"intake check: {note}" for note in p.get("intake_flags", [])]
         for field, f in p["facts"].items():
             if f.get("verified", True) is False:
@@ -162,7 +162,7 @@ def triage(criteria, facts):
             reason = f"{passes}; " + (join(strong) if strong else "does not lead on any single criterion")
             reason += f", but {join(weak)}" if weak else ""
         else:
-            reason = "Held for human review: " + "; ".join(r["flags"])
+            reason = "Held for review: " + "; ".join(r["flags"] + r["review_notes"])
             reason += f"; strongest point{'s' if len(strong) > 1 else ''}: {join(strong)}" if strong else ""
             reason += (f"; provisional {r['total']:.1f}, {ordinal(r['provisional_position'])} of {len(eligible)}"
                        " eligible bids; not ranked until resolved")
@@ -183,7 +183,7 @@ def triage(criteria, facts):
         r["reason"] = "; ".join(fails) + "; not scored" + (f" despite {join(despite)}" if despite else "") + "."
     for k, cause in sorted(failed.items()):
         rows[k] = {"proposal": k, "gates": {}, "sub": {}, "points": {}, "flags": [f"extraction failed: {cause}"],
-                   "total": None, "status": "flagged", "rank": None,
+                   "review_notes": [], "total": None, "status": "flagged", "rank": None,
                    "reason": f"Held for review: extraction failed: {cause}, needs a person to review."}
     return [rows[k] for k in ranked + flagged + sorted(failed) + ineligible]
 
@@ -205,6 +205,7 @@ def print_breakdown(criteria, rows):
         pts = "".join(f"{r['points'][k]:>11.2f}" if k in r["points"] else f"{'-':>11}" for k in keys)
         total = f"{r['total']:>10.4f}" if r["total"] is not None else f"{'-':>10}"
         print(f"{r['proposal']:<5}{gates:<20}{pts}{total}  {r['status']:<11} {r['rank'] if r['rank'] else '-'}")
+        print(f"     review notes: {'; '.join(r['review_notes']) or '-'}")
     print("weights: " + ", ".join(f"{c['key']}={c['weight']}" for c in criteria["weighted"]))
 
 

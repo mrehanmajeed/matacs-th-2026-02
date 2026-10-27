@@ -13,8 +13,8 @@ CRITERIA = json.loads((HERE / "criteria" / "commercial_solar_v1.json").read_text
 FACTS = json.loads((HERE / "facts" / "sample_facts.json").read_text(encoding="utf-8"))
 
 # Expected unrounded totals, hand-computed from the formulas in README.md.
-EXPECTED = {"A": (98.0147, 1, "ranked"), "E": (84.8035, 2, "ranked"),
-            "C": (77.0608, None, "flagged"), "D": (69.8214, None, "flagged"), "B": (None, None, "ineligible")}
+EXPECTED = {"A": (98.0147, 1, "ranked"), "E": (84.8034, 2, "ranked"),
+            "C": (77.0609, None, "flagged"), "D": (69.8214, None, "flagged"), "B": (None, None, "ineligible")}
 
 
 def test_reproduces_ranking_json_exactly(tmp_path):
@@ -26,7 +26,7 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     for k, (total, rank, status) in EXPECTED.items():
         assert (rows[k]["rank"], rows[k]["status"]) == (rank, status)
         if total is not None:
-            assert rows[k]["total"] == pytest.approx(total, abs=0.05)
+            assert rows[k]["total"] == pytest.approx(total, abs=0.001)
     out = to_output(triage(CRITERIA, FACTS))
     assert [r["proposal"] for r in out] == ["A", "E", "C", "D", "B"]
     assert [r["score"] for r in out] == [98.0, 84.8, None, None, None]  # flagged and ineligible: score null
@@ -37,7 +37,11 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     assert "the fastest eligible schedule (12 weeks)" in reasons["A"]  # B is faster overall
     assert "the most qualifying experience of any bid (14 installs)" in reasons["A"]  # no one beats A here
     assert "licence check" in reasons["B"] and "despite the lowest price" in reasons["B"]
+    assert "before the 5-year window" in reasons["C"]
     assert all("\n" not in r for r in reasons.values())  # one line each
+    limits = {"A": 30, "E": 30, "C": 35, "D": 30, "B": 30}
+    words = {k: len(r.split()) for k, r in reasons.items()}
+    assert all(words[k] <= n for k, n in limits.items()), words
 
 
 def test_provisional_position_counts_all_eligible_bids():
