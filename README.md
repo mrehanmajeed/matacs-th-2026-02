@@ -58,7 +58,7 @@ AI does one thing: it reads each proposal into a fixed set of facts, each with a
 - Warranty is split 50/50 between panel and workmanship length.
 - A "monitoring plan" means monitoring the system's performance after installation. Weekly progress reports during construction do not count.
 - A "named project lead" is accepted as stated, even when the proposal gives a role rather than a person's name, unless it says the lead will be assigned later.
-- Missing price, timeline or experience → 0 for that criterion and the bid is flagged. Missing team items earn no credit but are not flagged.
+- Missing price, timeline, experience or warranty → 0 for that criterion (for warranty, the missing part) and the bid is flagged. Missing team items earn no credit but are not flagged.
 - Bids held for review get no rank and no official score in `ranking.json` (the score is left empty, as in the brief's example). Their provisional total is still worked out and stated in the reason, so the reviewer sees where they would land once a person clears the flag.
 - A licence held by a subcontractor (rather than the bidder) fails the licence gate. A gate fact that is missing or unclear flags the bid; it never auto-rejects.
 - A price above the ceiling or a schedule over 16 weeks scores 0 for that criterion and flags the bid; a person decides.
@@ -77,7 +77,7 @@ Bids are compared only with other eligible bids (see Terms above), so B's low pr
 | Experience (30) | qualifying installs ÷ most qualifying installs among eligible bids. Not stated → 0 + flag. |
 | Price (25) | lowest eligible price ÷ this price. Over $260,000 or not stated → 0 + flag. |
 | Timeline (15) | fewest eligible weeks ÷ these weeks. Over 16 or not stated → 0 + flag. |
-| Warranty (15) | 0.5 × panel ÷ best panel + 0.5 × workmanship ÷ best workmanship. |
+| Warranty (15) | 0.5 × panel ÷ best panel + 0.5 × workmanship ÷ best workmanship. A part not stated → 0 for that part + flag. |
 | Team and approach (15) | 0.25 each: named lead, crew identified, safety plan, performance-monitoring plan. |
 
 Each rule gives a share between 0 and 1; the share is multiplied by the weight and the results are added up, giving a total out of 100. Totals are kept exact internally and rounded to one decimal in the output. Ties: higher exact total, then higher experience score, then lower price, then proposal letter.

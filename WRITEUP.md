@@ -1,10 +1,10 @@
 # Write-up: AI-assisted proposal triage
 
-AI reads each proposal and pulls out the facts, each backed by a quote. Simple rules check the must-haves, do the arithmetic and rank. People confirm facts, review the ranking and make the award. Key assumptions (5-year window counted from 2026, warranty split 50/50, progress reports aren't monitoring, missing facts score 0 and are flagged) are in README > Assumptions.
+AI reads each proposal and pulls out the facts, each backed by a quote. Simple rules check the must-haves, do the arithmetic and rank. People confirm facts, review the ranking and make the award. Key assumptions (README > Assumptions): the 5-year window counts from 2026; warranty splits 50/50; progress reports aren't monitoring; a missing price, timeline, experience or warranty scores 0 and flags the bid, while a missing team item just earns no points.
 
 ## 1. AI vs rules
 
-- **AI (one step):** reading. One request per proposal turns the text into a fixed list of facts (licence holder, insurance, installs, price, weeks, warranties, team items), each marked stated, not stated or unclear, with a word-for-word quote. Proposals phrase things in many ways; that is where AI helps.
+- **AI (one step):** reading. One request per proposal turns the text into a fixed list of facts, each marked stated, not stated or unclear, with a word-for-word quote. Proposals phrase things in many ways; that is where AI helps.
 - **Rules (everything else):** duplicate-file check, getting text out of PDFs (text recognition for scans), a keyword scan for hidden instructions, checking the AI's answer (format, quotes really in the document, sensible numbers, no price in a foreign currency), gates, scoring, status, tie-breaks and the one-line reasons (templates, not AI).
 - **People:** the admin sets criteria; the reviewer uploads files and works through three checkpoints.
 - **Why there:** gates, maths and ranking must be repeatable, explainable and auditable. An AI doing them can vary between runs, can't reliably show its working, and can be talked round by the text it reads, which proposal C tries.
@@ -37,13 +37,13 @@ AI reads each proposal and pulls out the facts, each backed by a quote. Simple r
 - **Wrong extraction** → every fact carries its quote, reviewed at checkpoint 1 before scoring.
 - **Made-up facts** → each quote must appear word for word in the document, or the fact is flagged unverified with the cause; the AI must say "not stated" rather than guess.
 - **Failed extraction** → if the AI stops early or returns a broken answer, the bid is flagged "extraction failed" for a person, never silently dropped.
-- **Prompt injection** → proposal text is marked untrusted, the AI never scores, and a separate rule scan looks for such text. C's note asking to be ranked first is flagged and has no effect; C is scored on its facts only (provisional 77.1, 3rd of 4 eligible bids; no official score until cleared).
+- **Prompt injection** (hidden instructions aimed at the AI) → proposal text is marked untrusted, the AI never scores, and a separate rule scan looks for such text. C's note asking to be ranked first is flagged and has no effect; C is scored on its facts only (provisional 77.1, 3rd of 4 eligible bids; no official score until cleared).
 - **Missing information treated as "no"** → "not stated" is its own status; a missing requirement flags rather than rejects. D gives no completion time, so it is flagged with timeline scored 0 (provisional 69.8, 4th of 4), not dropped.
-- **Price-led bias or skipped gates** → gates run first and ineligible bids are left out of the comparison. B is the cheapest and fastest bid overall, but its licence belongs to a subcontractor to be confirmed after award, so it is ineligible and shifts no other score.
+- **Price-led bias or skipped gates** → gates run first and ineligible bids are left out of the comparison. B is cheapest and fastest overall, but its licence belongs to a subcontractor, so it is ineligible and shifts no other score.
 - **Bias from names or marketing** → scoring sees only facts; marketing claims are listed as unsupported and score nothing; names can be hidden until award.
 - **Prices not like-for-like** → inclusions are recorded. A includes permits and utility connection; others don't say, so a review note asks for confirmation.
 - **Experience outside the 5-year window** → C counts installs "since 2020"; its reason carries that caveat (accepted as 9 here).
 - **Poor scans** → text recognition, and near-empty text flags the file.
 - **AI behaviour drifting** → fixed AI version; re-test on sample proposals with known answers before any change.
-- **Cost** → one AI request per unique file, a small low-cost model, no AI in scoring.
+- **Cost** → one AI request per unique file, a small model, no AI in scoring.
 - **Over-reliance** → a person always awards, and every flag needs a human decision with a reason.
