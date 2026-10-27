@@ -33,8 +33,7 @@ def test_reproduces_ranking_json_exactly(tmp_path):
     assert "instruction" in reasons["C"] and "ignored" in reasons["C"] and "provisional 77.1" in reasons["C"]
     assert "no completion time" in reasons["D"] and "provisional 69.8" in reasons["D"]
     assert "licence check" in reasons["B"] and "despite the lowest price" in reasons["B"]
-    assert all("
-" not in r for r in reasons.values())
+    assert all("\n" not in r for r in reasons.values())  # one line each
 
 
 def test_b_fails_licence_gate():
