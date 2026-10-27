@@ -1,0 +1,99 @@
+{
+  "criteria_version_id": "commercial_solar_v1",
+  "category": "Commercial Solar Installation",
+  "created_by": "admin",
+  "constraints": {
+    "currency": "CAD",
+    "budget_ceiling_cad": 260000,
+    "max_weeks": 16,
+    "experience_min_kw": 100,
+    "experience_window_years": 5,
+    "reference_year": 2026,
+    "min_liability_cad": 5000000
+  },
+  "mandatory": [
+    {
+      "key": "M1",
+      "label": "Provincial electrical contractor licence, held by the bidder and stated in the proposal",
+      "short": "licence",
+      "require": [
+        {"field": "licence_holder", "equals": "bidder"}
+      ]
+    },
+    {
+      "key": "M2",
+      "label": "WSIB clearance and $5M liability insurance, both confirmed",
+      "short": "WSIB and insurance",
+      "require": [
+        {"field": "wsib_clearance", "equals": true},
+        {"field": "liability_insurance_cad", "min_constraint": "min_liability_cad"}
+      ]
+    }
+  ],
+  "weighted": [
+    {
+      "key": "experience",
+      "label": "Relevant experience",
+      "weight": 30,
+      "method": "higher_better",
+      "fields": ["qualifying_installs"],
+      "phrases": {
+        "best": "the most qualifying experience ({v} installs)",
+        "worst": "the fewest qualifying installs ({v}) among eligible bids",
+        "missing": "no qualifying install count is stated (experience scored 0)"
+      }
+    },
+    {
+      "key": "price",
+      "label": "Price",
+      "weight": 25,
+      "method": "lower_better",
+      "fields": ["total_price_cad"],
+      "limit": "budget_ceiling_cad",
+      "phrases": {
+        "best": "the lowest price",
+        "worst": "the highest price",
+        "missing": "no total price is stated (price scored 0)",
+        "over_limit": "the price is above the {limit} budget ceiling (price scored 0)"
+      }
+    },
+    {
+      "key": "timeline",
+      "label": "Timeline",
+      "weight": 15,
+      "method": "lower_better",
+      "fields": ["completion_weeks"],
+      "limit": "max_weeks",
+      "phrases": {
+        "best": "the fastest schedule ({v} weeks)",
+        "worst": "the slowest schedule ({v} weeks)",
+        "missing": "no completion time is stated, so the {limit}-week requirement cannot be confirmed (timeline scored 0)",
+        "over_limit": "the schedule is longer than {limit} weeks (timeline scored 0)"
+      }
+    },
+    {
+      "key": "warranty",
+      "label": "Warranty",
+      "weight": 15,
+      "method": "higher_better",
+      "fields": ["panel_warranty_years", "workmanship_warranty_years"],
+      "phrases": {
+        "best": "the longest combined panel and workmanship warranties",
+        "worst": "the shortest warranties",
+        "missing": "a warranty term is not stated (that part scored 0)"
+      }
+    },
+    {
+      "key": "team",
+      "label": "Team and approach",
+      "weight": 15,
+      "method": "checklist",
+      "fields": ["named_lead", "crew_identified", "safety_plan", "monitoring_plan"],
+      "phrases": {
+        "best": "a complete team, safety and monitoring plan",
+        "worst": "the least complete team and approach"
+      }
+    }
+  ],
+  "tie_break": ["experience", "price"]
+}

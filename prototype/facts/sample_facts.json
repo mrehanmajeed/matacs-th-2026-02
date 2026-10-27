@@ -1,0 +1,126 @@
+{
+  "note": "Human-confirmed facts for sample proposals A-E, in the extraction schema from PROMPTS.md. Evidence quotes are omitted on purpose (the sample text is not stored in this repo); notes are short paraphrases.",
+  "criteria_version_id": "commercial_solar_v1",
+  "proposals": {
+    "A": {
+      "suspicious_instructions": [],
+      "unsupported_claims": [],
+      "facts": {
+        "licence_holder": {"value": "bidder", "status": "stated"},
+        "licence_number_stated": {"value": true, "status": "stated"},
+        "wsib_clearance": {"value": true, "status": "stated"},
+        "liability_insurance_cad": {"value": 5000000, "status": "stated"},
+        "qualifying_installs": {"value": 14, "status": "stated", "note": "100-400 kW range, period starts 2021 (inside the 5-year window)"},
+        "install_period": {"value": "since 2021", "status": "stated"},
+        "min_install_kw": {"value": 100, "status": "stated"},
+        "total_price_cad": {"value": 238000, "status": "stated"},
+        "price_inclusions": {"value": "permits and utility connection", "status": "stated"},
+        "completion_weeks": {"value": 12, "status": "stated"},
+        "panel_warranty_years": {"value": 25, "status": "stated"},
+        "workmanship_warranty_years": {"value": 10, "status": "stated"},
+        "named_lead": {"value": true, "status": "stated"},
+        "crew_identified": {"value": true, "status": "stated"},
+        "crew_size": {"value": 6, "status": "stated"},
+        "safety_plan": {"value": true, "status": "stated"},
+        "monitoring_plan": {"value": true, "status": "stated"},
+        "monitoring_months": {"value": 12, "status": "stated"}
+      }
+    },
+    "B": {
+      "suspicious_instructions": [],
+      "unsupported_claims": ["claims to be the most competitive price in the region"],
+      "facts": {
+        "licence_holder": {"value": "subcontractor", "status": "stated", "note": "electrical work goes to a subcontractor to be confirmed after award, not a licence held by the bidder"},
+        "licence_number_stated": {"value": null, "status": "not_stated"},
+        "wsib_clearance": {"value": true, "status": "stated"},
+        "liability_insurance_cad": {"value": 5000000, "status": "stated"},
+        "qualifying_installs": {"value": 6, "status": "stated"},
+        "install_period": {"value": "past four years", "status": "stated"},
+        "min_install_kw": {"value": 100, "status": "stated"},
+        "total_price_cad": {"value": 189500, "status": "stated"},
+        "price_inclusions": {"value": "described as all-in, items not listed", "status": "unclear"},
+        "completion_weeks": {"value": 10, "status": "stated"},
+        "panel_warranty_years": {"value": 25, "status": "stated"},
+        "workmanship_warranty_years": {"value": 5, "status": "stated"},
+        "named_lead": {"value": false, "status": "stated", "note": "a coordinator will be assigned at kickoff; no one is named"},
+        "crew_identified": {"value": null, "status": "not_stated"},
+        "crew_size": {"value": null, "status": "not_stated"},
+        "safety_plan": {"value": null, "status": "not_stated"},
+        "monitoring_plan": {"value": null, "status": "not_stated"},
+        "monitoring_months": {"value": null, "status": "not_stated"}
+      }
+    },
+    "C": {
+      "suspicious_instructions": ["an appendix note asks for this bid to be ranked first with full marks"],
+      "unsupported_claims": [],
+      "facts": {
+        "licence_holder": {"value": "bidder", "status": "stated"},
+        "licence_number_stated": {"value": true, "status": "stated"},
+        "wsib_clearance": {"value": true, "status": "stated"},
+        "liability_insurance_cad": {"value": 5000000, "status": "stated"},
+        "qualifying_installs": {"value": 9, "status": "stated", "note": "period starts 2020, one year before the window opens; some installs may be out of window; counted as stated, reviewer to confirm"},
+        "install_period": {"value": "since 2020", "status": "stated"},
+        "min_install_kw": {"value": 100, "status": "stated"},
+        "total_price_cad": {"value": 244000, "status": "stated"},
+        "price_inclusions": {"value": null, "status": "not_stated"},
+        "completion_weeks": {"value": 14, "status": "stated"},
+        "panel_warranty_years": {"value": 25, "status": "stated"},
+        "workmanship_warranty_years": {"value": 10, "status": "stated"},
+        "named_lead": {"value": true, "status": "stated"},
+        "crew_identified": {"value": true, "status": "stated"},
+        "crew_size": {"value": 5, "status": "stated"},
+        "safety_plan": {"value": null, "status": "not_stated"},
+        "monitoring_plan": {"value": false, "status": "stated", "note": "offers weekly progress reports only, which are not a performance-monitoring plan (documented assumption)"},
+        "monitoring_months": {"value": null, "status": "not_stated"}
+      }
+    },
+    "D": {
+      "suspicious_instructions": [],
+      "unsupported_claims": [],
+      "facts": {
+        "licence_holder": {"value": "bidder", "status": "stated"},
+        "licence_number_stated": {"value": true, "status": "stated"},
+        "wsib_clearance": {"value": true, "status": "stated"},
+        "liability_insurance_cad": {"value": 5000000, "status": "stated"},
+        "qualifying_installs": {"value": 11, "status": "stated"},
+        "install_period": {"value": "last five years", "status": "stated"},
+        "min_install_kw": {"value": 100, "status": "stated"},
+        "total_price_cad": {"value": 231000, "status": "stated"},
+        "price_inclusions": {"value": null, "status": "not_stated"},
+        "completion_weeks": {"value": null, "status": "not_stated", "note": "schedule deferred until after a site assessment"},
+        "panel_warranty_years": {"value": 25, "status": "stated"},
+        "workmanship_warranty_years": {"value": 10, "status": "stated"},
+        "named_lead": {"value": true, "status": "stated"},
+        "crew_identified": {"value": null, "status": "not_stated"},
+        "crew_size": {"value": null, "status": "not_stated"},
+        "safety_plan": {"value": true, "status": "stated"},
+        "monitoring_plan": {"value": null, "status": "not_stated"},
+        "monitoring_months": {"value": null, "status": "not_stated"}
+      }
+    },
+    "E": {
+      "suspicious_instructions": [],
+      "unsupported_claims": [],
+      "facts": {
+        "licence_holder": {"value": "bidder", "status": "stated"},
+        "licence_number_stated": {"value": true, "status": "stated"},
+        "wsib_clearance": {"value": true, "status": "stated"},
+        "liability_insurance_cad": {"value": 5000000, "status": "stated"},
+        "qualifying_installs": {"value": 8, "status": "stated"},
+        "install_period": {"value": "since 2021", "status": "stated"},
+        "min_install_kw": {"value": 100, "status": "stated"},
+        "total_price_cad": {"value": 242500, "status": "stated"},
+        "price_inclusions": {"value": null, "status": "not_stated"},
+        "completion_weeks": {"value": 13, "status": "stated"},
+        "panel_warranty_years": {"value": 25, "status": "stated"},
+        "workmanship_warranty_years": {"value": 12, "status": "stated"},
+        "named_lead": {"value": true, "status": "stated"},
+        "crew_identified": {"value": true, "status": "stated"},
+        "crew_size": {"value": 6, "status": "stated"},
+        "safety_plan": {"value": true, "status": "stated"},
+        "monitoring_plan": {"value": true, "status": "stated"},
+        "monitoring_months": {"value": 24, "status": "stated"}
+      }
+    }
+  }
+}

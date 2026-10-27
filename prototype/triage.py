@@ -1,0 +1,200 @@
+"""Deterministic triage: mandatory gates -> weighted scoring -> status -> ranking -> template reasons.
+
+No AI in this file. Stdlib only.
+Usage: python prototype/triage.py [--criteria FILE] [--facts FILE] [--out FILE]
+"""
+import argparse
+import json
+import math
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+
+def fact(proposal, field):
+    """Return (value, usable). Usable = stated, non-null and evidence verified (default True)."""
+    f = proposal["facts"].get(field, {})
+    usable = f.get("status") == "stated" and f.get("value") is not None and f.get("verified", True)
+    return f.get("value"), usable
+
+
+def validate_criteria(criteria):
+    total = sum(c["weight"] for c in criteria["weighted"])
+    if not math.isclose(total, 100):
+        raise ValueError(f"weighted criteria must sum to 100, got {total}")
+
+
+def gate(proposal, g, cons):
+    """'fail' only on an explicitly stated value that breaks the rule; missing/unclear -> 'unconfirmed'."""
+    result = "pass"
+    for r in g["require"]:
+        v, usable = fact(proposal, r["field"])
+        if not usable:
+            result = "unconfirmed"
+        elif ("equals" in r and v != r["equals"]) or ("min_constraint" in r and v < cons[r["min_constraint"]]):
+            return "fail"
+    return result
+
+
+def score_criterion(pool, crit, cons):
+    """Return {letter: (sub_score 0..1, flag_kind or None)} for one weighted criterion over the pool."""
+    fields = crit["fields"]
+    if crit["method"] == "checklist":  # not stated counts as no credit, but is not a flag
+        return {k: (sum(fact(p, f) == (True, True) for f in fields) / len(fields), None) for k, p in pool.items()}
+    limit = cons[crit["limit"]] if "limit" in crit else None
+    parts, flags = {k: [] for k in pool}, {k: None for k in pool}
+    for f in fields:
+        vals = {k: fact(p, f) for k, p in pool.items()}
+        usable = [v for v, ok in vals.values() if ok and (limit is None or v <= limit)]
+        best = (max if crit["method"] == "higher_better" else min)(usable, default=0)
+        for k, (v, ok) in vals.items():
+            if not ok:
+                parts[k].append(0.0)
+                flags[k] = "missing"
+            elif limit is not None and v > limit:
+                parts[k].append(0.0)
+                flags[k] = "over_limit"
+            elif crit["method"] == "higher_better":
+                parts[k].append(v / best if best else 0.0)
+            else:
+                parts[k].append(best / v if v > 0 else 0.0)
+    return {k: (sum(s) / len(s), flags[k]) for k, s in parts.items()}
+
+
+def ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def join(items):
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def phrase(crit, kind, proposal, cons):
+    v = fact(proposal, crit["fields"][0])[0]
+    limit = cons.get(crit.get("limit"))
+    return crit["phrases"][kind].format(v=v, limit=limit)
+
+
+def triage(criteria, facts):
+    validate_criteria(criteria)
+    cons, props = criteria["constraints"], facts["proposals"]
+    rows = {}
+    for k in sorted(props):
+        gates = {g["key"]: gate(props[k], g, cons) for g in criteria["mandatory"]}
+        rows[k] = {"proposal": k, "gates": gates, "sub": {}, "points": {}, "flags": [], "total": None}
+
+    # Normalisation pool: everything not explicitly failing a gate (ineligible bids never shift others' scores).
+    pool = {k: props[k] for k, r in rows.items() if "fail" not in r["gates"].values()}
+    for k in pool:
+        p, r = props[k], rows[k]
+        for g in criteria["mandatory"]:
+            if r["gates"][g["key"]] == "unconfirmed":
+                r["flags"].append(f"the {g['short']} check could not be confirmed")
+        for note in p.get("suspicious_instructions", []):
+            r["flags"].append(f"contains an embedded instruction aimed at automated reviewers ({note}); "
+                              "it was ignored and the bid was scored on its stated facts only")
+        for field, f in p["facts"].items():
+            if f.get("verified", True) is False:
+                r["flags"].append(f"the evidence for {field} was not found verbatim in the source")
+
+    leaders = {}  # criterion key -> (best letters, unique-worst letter) among unflagged pool members
+    for crit in criteria["weighted"]:
+        scores = score_criterion(pool, crit, cons)
+        for k, (sub, flag) in scores.items():
+            rows[k]["sub"][crit["key"]] = sub
+            rows[k]["points"][crit["key"]] = crit["weight"] * sub
+            if flag:
+                rows[k]["flags"].append(phrase(crit, flag, props[k], cons))
+        clean = {k: s for k, (s, flag) in scores.items() if flag is None}
+        hi, lo = max(clean.values(), default=0), min(clean.values(), default=0)
+        lows = [k for k, s in clean.items() if math.isclose(s, lo)]
+        leaders[crit["key"]] = ({k for k, s in clean.items() if hi > 0 and math.isclose(s, hi)},
+                                lows[0] if len(lows) == 1 and len(clean) > 1 and not math.isclose(hi, lo) else None)
+
+    for k in pool:
+        rows[k]["total"] = sum(rows[k]["points"].values())
+        rows[k]["status"] = "flagged" if rows[k]["flags"] else "ranked"
+    for k, r in rows.items():
+        if k not in pool:
+            r["status"] = "ineligible"
+
+    def sort_key(k):
+        r = rows[k]
+        return (-r["total"], *(-r["sub"][c] for c in criteria["tie_break"]), k)
+
+    ranked = sorted((k for k in pool if rows[k]["status"] == "ranked"), key=sort_key)
+    flagged = sorted((k for k in pool if rows[k]["status"] == "flagged"), key=sort_key)
+    ineligible = sorted(k for k in rows if k not in pool)
+    for i, k in enumerate(ranked, 1):
+        rows[k]["rank"] = i
+    for k in flagged + ineligible:
+        rows[k]["rank"] = None
+
+    # Template reasons, built only from the breakdown above.
+    n_gates = len(criteria["mandatory"])
+    passes = f"Passes {'both' if n_gates == 2 else f'all {n_gates}'} mandatory checks"
+    for k in ranked + flagged:
+        r = rows[k]
+        strong = [phrase(c, "best", props[k], cons) for c in criteria["weighted"] if k in leaders[c["key"]][0]]
+        weak = [phrase(c, "worst", props[k], cons) for c in criteria["weighted"] if leaders[c["key"]][1] == k]
+        if r["status"] == "ranked":
+            reason = f"{passes}; " + (join(strong) if strong else "does not lead on any single criterion")
+            reason += f", but {join(weak)}" if weak else ""
+        else:
+            place = 1 + sum(rows[j]["total"] > r["total"] for j in ranked)
+            reason = "Held for human review: " + "; ".join(r["flags"])
+            reason += f"; strongest point{'s' if len(strong) > 1 else ''}: {join(strong)}" if strong else ""
+            reason += f"; provisional score {r['total']:.1f} would place {ordinal(place)}"
+        r["reason"] = reason + "."
+    for k in ineligible:
+        p, r = props[k], rows[k]
+        fails = []
+        for g in criteria["mandatory"]:
+            if r["gates"][g["key"]] == "fail":
+                notes = [p["facts"][q["field"]].get("note") for q in g["require"] if p["facts"].get(q["field"], {}).get("note")]
+                fails.append(f"Fails the mandatory {g['short']} check" + (f": {notes[0]}" if notes else ""))
+        # What it would have led on against every bid, to make clear those strengths were not counted.
+        despite = []
+        for c in criteria["weighted"]:
+            sub, flag = score_criterion(props, c, cons)[k]
+            if flag is None and c["method"] != "checklist" and math.isclose(sub, 1):
+                despite.append(phrase(c, "best", p, cons))
+        r["reason"] = "; ".join(fails) + "; not scored" + (f" despite {join(despite)}" if despite else "") + "."
+    return [rows[k] for k in ranked + flagged + ineligible]
+
+
+def to_output(rows):
+    return [{"proposal": r["proposal"], "rank": r["rank"], "status": r["status"],
+             "score": None if r["status"] == "ineligible" else round(r["total"], 1), "reason": r["reason"]}
+            for r in rows]
+
+
+def print_breakdown(criteria, rows):
+    keys = [c["key"] for c in criteria["weighted"]]
+    print(f"criteria_version_id: {criteria['criteria_version_id']}")
+    head = "".join(f"{c['key'][:10]:>11}" for c in criteria["weighted"])
+    print(f"{'prop':<5}{'gates':<20}{head}{'total':>10}  status      rank")
+    for r in rows:
+        gates = " ".join(f"{g}:{v}" for g, v in r["gates"].items())
+        pts = "".join(f"{r['points'][k]:>11.2f}" if k in r["points"] else f"{'-':>11}" for k in keys)
+        total = f"{r['total']:>10.4f}" if r["total"] is not None else f"{'-':>10}"
+        print(f"{r['proposal']:<5}{gates:<20}{pts}{total}  {r['status']:<11} {r['rank'] if r['rank'] else '-'}")
+    print("weights: " + ", ".join(f"{c['key']}={c['weight']}" for c in criteria["weighted"]))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--criteria", default=HERE / "criteria" / "commercial_solar_v1.json")
+    ap.add_argument("--facts", default=HERE / "facts" / "sample_facts.json")
+    ap.add_argument("--out", default=HERE.parent / "ranking.json")
+    a = ap.parse_args()
+    criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
+    facts = json.loads(Path(a.facts).read_text(encoding="utf-8"))
+    rows = triage(criteria, facts)
+    print_breakdown(criteria, rows)
+    Path(a.out).write_text(json.dumps(to_output(rows), indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"wrote {a.out}")
+
+
+if __name__ == "__main__":
+    main()
