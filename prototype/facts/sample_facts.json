@@ -43,7 +43,7 @@
         "completion_weeks": {"value": 10, "status": "stated"},
         "panel_warranty_years": {"value": 25, "status": "stated"},
         "workmanship_warranty_years": {"value": 5, "status": "stated"},
-        "named_lead": {"value": false, "status": "stated", "note": "a coordinator will be assigned at kickoff; no one is named"},
+        "named_lead": {"value": false, "status": "stated", "note": "only a coordinator role, to be filled at kickoff; nobody named"},
         "crew_identified": {"value": null, "status": "not_stated"},
         "crew_size": {"value": null, "status": "not_stated"},
         "safety_plan": {"value": null, "status": "not_stated"},

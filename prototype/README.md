@@ -5,12 +5,12 @@ Small, readable sketch of the design. Python 3.10+. `triage.py` needs no install
 | File | What it does |
 |---|---|
 | `criteria/commercial_solar_v1.json` | Admin config for this category, one immutable version: constraints, fact fields, mandatory gates, weighted criteria (weight, method, fields, reason phrases), tie-breaks. |
-| `facts/sample_facts.json` | Human-confirmed facts for proposals A–E in the extraction schema (paraphrased notes, no source text). |
-| `triage.py` | Rules only: gates → scores → status → tie-breaks → template reasons. Prints the breakdown and writes `ranking.json`. |
-| `extract.py` | Optional live AI step: `samples_local/*.txt` → extraction prompt from `PROMPTS.md` → schema check → verbatim-evidence and range checks → `outputs_local/facts.json` + `audit.jsonl`. |
+| `facts/sample_facts.json` | Reviewer-confirmed facts for proposals A–E (after checkpoint 1), using the extraction fields. Evidence quotes are deliberately left out because the brief may not be copied; notes are short paraphrases, plus the reviewer's `review_notes`. |
+| `triage.py` | Rules only: gates → scores → status → tie-breaks → template reasons. Prints the breakdown and review notes, writes `ranking.json`, appends a run record to `outputs_local/triage_runs.jsonl` (gitignored), and refuses facts confirmed under a different criteria version. |
+| `extract.py` | Optional live AI step: `samples_local/*.txt` → extraction prompt from `PROMPTS.md` → schema check → quote, range and currency checks → `outputs_local/facts.json` + `audit.jsonl`. A failed extraction is logged and passed on as a flagged bid, never dropped. |
 | `injection_scan.py` | Rule-based scan for text aimed at automated reviewers; runs on the raw text, separately from the AI. |
 | `flow.dot` | Graphviz source for `diagram/process-flow.png` (`dot -Tpng -Gdpi=110 prototype/flow.dot -o diagram/process-flow.png`). |
-| `test_triage.py` | Tests: reproduces `ranking.json`, B fails the licence gate, weights must sum to 100, scanner catches an injected instruction, weight change rescoring, `PROMPTS.md` in sync with code. |
+| `test_triage.py` | 9 tests: reproduces `ranking.json` (scores, statuses, reason wording and length); B fails the licence gate; a missing gate fact flags instead of rejecting; weights must sum to 100; a weight change rescores predictably; provisional positions C = 3rd, D = 4th; scanner catches an injected instruction; `PROMPTS.md` matches the code; a failed extraction becomes a flagged bid. |
 
 ```
 python prototype/triage.py                    # writes ranking.json

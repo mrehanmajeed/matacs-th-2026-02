@@ -42,7 +42,7 @@
     },
     {
       "key": "M2",
-      "label": "WSIB clearance and $5M liability insurance, both confirmed",
+      "label": "WSIB clearance plus $5M liability cover, both confirmed",
       "short": "WSIB and insurance",
       "require": [
         {"field": "wsib_clearance", "equals": true},

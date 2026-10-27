@@ -10,13 +10,14 @@
 
 <!--
 Candidate disagreement / correction points that actually came up while building this (pick one, write it in your own words, then delete this comment):
-1. Temperature 0: the plan locked "temperature 0" for extraction, but the small model chosen for this step doesn't accept it. The design now uses temperature 0 only where the pinned model supports it, and repeatability rests on the file-hash cache, stored human-confirmed facts and deterministic scoring instead.
+1. Temperature 0: the plan locked "temperature 0" for extraction, but the small model chosen for this step doesn't accept it. Temperature is now a config setting (0 for models that accept it), and repeatability rests on stored, human-confirmed facts and rule-based scoring instead.
 2. Scanner keywords vs leak check: the plan listed a scanner keyword that its own leak check bans from the repo. The regex was written as a pattern (pre[\s-]?approv...) so the scanner still catches it without the literal string being committed.
 3. Expected totals: the plan's table (E 84.8035, C 77.0608) summed sub-scores already rounded to 4 dp. The code keeps full precision (84.8034, 77.0609); the published 1-decimal scores are identical.
 4. Flagged bids: the first version put a provisional score in ranking.json for flagged bids. I changed it to score null to match the brief's example format, keeping the provisional total in the reason text and the breakdown table.
 5. Reasons: the plan's suggested wording (e.g. "second-lowest eligible price") was not copied. The template only mentions criteria where a bid leads or is uniquely weakest, so every reason is generated from the numbers.
 6. Team-and-approach items that are not stated count as "no credit" without a flag (unlike missing price, weeks or experience); otherwise every bid lacking a monitoring plan would be held for review.
 7. Model: the AI coding assistant's default was the largest model; the design uses the small current model for cost, since the task is extraction only.
+8. Relative scoring: the plan stated that adding or removing a bid never changes the other bids' order. An independent check found a counter-example (two bids swap places when a third is added), so the README now says the order can change and the bid set is rescored like a criteria change.
 -->
 
 ## Files
@@ -30,7 +31,7 @@ Candidate disagreement / correction points that actually came up while building 
 - [.gitignore](.gitignore): files kept out of the repo (keys, local samples and outputs)
 - [prototype/README.md](prototype/README.md): what each prototype file does
 - [prototype/criteria/commercial_solar_v1.json](prototype/criteria/commercial_solar_v1.json): admin criteria config (version 1)
-- [prototype/facts/sample_facts.json](prototype/facts/sample_facts.json): confirmed facts for A–E
+- [prototype/facts/sample_facts.json](prototype/facts/sample_facts.json): reviewer-confirmed facts for A–E (no evidence quotes, since the brief may not be copied)
 - [prototype/triage.py](prototype/triage.py): gates, scoring, status, ranking and reasons (rules only)
 - [prototype/extract.py](prototype/extract.py): optional live AI extraction and validation
 - [prototype/injection_scan.py](prototype/injection_scan.py): rule-based scan for hidden instructions
@@ -40,13 +41,15 @@ Candidate disagreement / correction points that actually came up while building 
 
 ## Design in brief
 
-AI does one thing: it reads each proposal into a fixed set of facts, each with a status (stated / not stated / unclear) and a quote copied from the document. Everything that decides an outcome is plain code: quotes are checked against the source, the two mandatory gates run, eligible bids are scored with fixed formulas, flags hold uncertain bids for a person, and one-line reasons are filled in from the score breakdown. A reviewer confirms facts, resolves flags and sees every number with its evidence; a person makes the award; every step is logged.
+AI does one thing: it reads each proposal into a fixed set of facts, each with a status (stated / not stated / unclear) and a quote copied from the document. Everything that decides an outcome is plain code: quotes are checked against the source, the two mandatory gates run, eligible bids are scored with fixed formulas, flags hold uncertain bids for a person, and one-line reasons are filled in from the score breakdown. A reviewer confirms facts, resolves flags and sees every number with its evidence; a person makes the award. The prototype logs extraction and every scoring run (production would log every step).
 
-- **A:** ranked 1, 98.0
-- **E:** ranked 2, 84.8
-- **C:** flagged, score null; provisional 77.1 in the reason (embedded instruction aimed at automated reviewers; held for review)
-- **D:** flagged, score null; provisional 69.8 in the reason (no completion time, so the 16-week limit can't be confirmed)
-- **B:** ineligible, not scored (licence held by a subcontractor to be confirmed after award, not by the bidder)
+**Terms used below.** An *eligible* bid passed both mandatory checks (it is either ranked or held for review). A *qualifying install* is a commercial system of at least 100 kW completed within the last 5 years.
+
+- **A:** ranked 1, score 98.0. Review note: its price includes permits and utility connection; the other bids don't say, so prices may not be like-for-like.
+- **E:** ranked 2, score 84.8.
+- **C:** held for review, no official score yet (would be 77.1, 3rd of 4 eligible bids). It contains an instruction aimed at automated reviewers, which was ignored, and its install count may include work before the 5-year window.
+- **D:** held for review, no official score yet (would be 69.8, 4th of 4 eligible bids). It gives no completion time, so the 16-week limit can't be confirmed.
+- **B:** ineligible, not scored. Its licence belongs to a subcontractor to be confirmed after award, not to the bidder.
 
 ## Assumptions
 
@@ -56,35 +59,35 @@ AI does one thing: it reads each proposal into a fixed set of facts, each with a
 - A "monitoring plan" means monitoring the system's performance after installation. Weekly progress reports during construction do not count.
 - A "named project lead" is accepted as stated, even when the proposal gives a role rather than a person's name, unless it says the lead will be assigned later.
 - Missing price, timeline or experience → 0 for that criterion and the bid is flagged. Missing team items earn no credit but are not flagged.
-- Flagged bids get `"score": null` and no rank in `ranking.json`, matching the brief's format. Their provisional total is still computed, printed in the breakdown and stated in the reason, so the reviewer sees where they would land once a person clears the flag.
+- Bids held for review get no rank and no official score in `ranking.json` (the score is left empty, as in the brief's example). Their provisional total is still worked out and stated in the reason, so the reviewer sees where they would land once a person clears the flag.
 - A licence held by a subcontractor (rather than the bidder) fails the licence gate. A gate fact that is missing or unclear flags the bid; it never auto-rejects.
 - A price above the ceiling or a schedule over 16 weeks scores 0 for that criterion and flags the bid; a person decides.
 - Whether a licence number is written in the proposal is recorded for the reviewer; no rule checks it. A real licence-registry lookup is a human or integration step.
-- C's install count ("since 2020") may include installs before the window; it is accepted as 9 at fact review, with a note to verify dates.
-- Prices are compared as stated. A's includes permits and utility connection and the others don't say, so inclusions are confirmed before award.
+- C's install count ("since 2020") may include installs before the window; it is accepted as 9 at fact review, and the caveat is shown in C's reason.
+- Prices are compared as stated. A's includes permits and utility connection and the others don't say; a review note on A asks for inclusions to be confirmed before award.
 
 ## Scoring rules used for `ranking.json`
 
-Comparison pool = bids that do not explicitly fail a mandatory gate (ranked + flagged). Ineligible bids are excluded, so B's low price affects no one.
+Bids are compared only with other eligible bids (see Terms above), so B's low price affects no one.
 
 | Criterion (weight) | Rule |
 |---|---|
-| Licence (gate) | Licence held by the bidder and stated. Subcontractor → fail. Missing/unclear → flag. |
+| Licence (gate) | The bidder itself must hold the licence and name it. Subcontractor → fail. Missing/unclear → flag. |
 | WSIB + $5M insurance (gate) | Both confirmed. Missing/unclear → flag. |
-| Experience (30) | installs ÷ most installs in pool. Not stated → 0 + flag. |
-| Price (25) | lowest price in pool ÷ price. Over $260,000 or not stated → 0 + flag. |
-| Timeline (15) | fewest weeks in pool ÷ weeks. Over 16 or not stated → 0 + flag. |
+| Experience (30) | qualifying installs ÷ most qualifying installs among eligible bids. Not stated → 0 + flag. |
+| Price (25) | lowest eligible price ÷ this price. Over $260,000 or not stated → 0 + flag. |
+| Timeline (15) | fewest eligible weeks ÷ these weeks. Over 16 or not stated → 0 + flag. |
 | Warranty (15) | 0.5 × panel ÷ best panel + 0.5 × workmanship ÷ best workmanship. |
 | Team and approach (15) | 0.25 each: named lead, crew identified, safety plan, performance-monitoring plan. |
 
-Total = Σ weight × sub-score (0–100), full precision inside, rounded to 1 decimal in output. Ties: higher unrounded total → higher experience score → lower price → proposal letter.
+Each rule gives a share between 0 and 1; the share is multiplied by the weight and the results are added up, giving a total out of 100. Totals are kept exact internally and rounded to one decimal in the output. Ties: higher exact total, then higher experience score, then lower price, then proposal letter.
 
 ## Running the prototype
 
 ```
-python prototype/triage.py                          # no installs needed; prints the breakdown, writes ranking.json
+python prototype/triage.py                          # no installs needed; prints the breakdown + review notes, writes ranking.json
 pip install -r prototype/requirements.txt
-pytest                                              # 8 tests
+pytest                                              # 9 tests
 cp .env.example .env                                # optional live path: add your key first
 python prototype/extract.py                         # reads prototype/samples_local/*.txt, writes prototype/outputs_local/
 ```

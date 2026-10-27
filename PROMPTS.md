@@ -10,7 +10,7 @@ The blocks below are exactly what is sent. `prototype/extract.py` reads the syst
 - **Model:** pinned through config (`ANTHROPIC_MODEL`, default `claude-haiku-5-5`, a small, low-cost model suited to extraction). The audit log stores the model id used for every call.
 - **One call per proposal.** Results are cached by file hash + prompt hash + model, so re-running the same file never calls the AI again.
 - **Structured output:** `output_config.format` with the JSON schema in section (d). The API constrains the reply to that schema, and the code validates it again with `jsonschema`.
-- **Sampling:** temperature 0 where the pinned model supports it, otherwise the model's default (`ANTHROPIC_TEMPERATURE=0` turns it on in `extract.py`). Repeatability does not depend on it: it rests on the file-hash cache, the stored human-confirmed facts and deterministic scoring (see WRITEUP Q2).
+- **Sampling:** temperature is a config setting (`ANTHROPIC_TEMPERATURE`): set it to 0 for models that accept it, or leave it empty for the model's default. Repeatability rests on the stored, human-confirmed facts and rule-based scoring, not on temperature (see WRITEUP Q2).
 - **max_tokens:** 16000.
 - **When extraction fails:** an API error, a stop reason other than `end_turn` (e.g. `max_tokens`, `refusal`), output that is not valid JSON, or output that does not match the schema (including a bad cached copy) never crashes the run and never drops the bid. The cause is written to the audit log, and the proposal is passed on as flagged with the reason "extraction failed: <cause>, needs a person to review".
 
