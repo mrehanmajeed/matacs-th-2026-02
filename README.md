@@ -2,7 +2,7 @@
 
 - **Name:** Muhammad Rehan Majeed
 - **Reference:** MATACS-TH-2026-02
-- **Time actually spent:** About 45 min (reading the brief, designing with AI assistance, supervising the build and reviewing every result)
+- **Time actually spent:** About 1.5 hours (reading the brief, designing with AI assistance, supervising the build and reviewing every result)
 
 ## How I used AI tools
 
