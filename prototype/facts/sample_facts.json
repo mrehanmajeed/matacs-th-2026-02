@@ -1,6 +1,7 @@
 {
   "note": "Reviewer-confirmed facts for sample proposals A-E (after checkpoint 1), using the fact fields from PROMPTS.md. Evidence quotes are deliberately left out because the brief may not be copied; notes are short paraphrases. review_notes are the reviewer's caveats.",
   "criteria_version_id": "commercial_solar_v1",
+  "fact_schema_fingerprint": "a74a1c8c1ba1dc42",
   "proposals": {
     "A": {
       "suspicious_instructions": [],

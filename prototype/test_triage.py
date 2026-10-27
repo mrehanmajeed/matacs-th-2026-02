@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from triage import HERE, gate, to_output, triage
+from triage import HERE, fact_schema_fingerprint, gate, to_output, triage
 
 ROOT = HERE.parent
 CRITERIA = json.loads((HERE / "criteria" / "commercial_solar_v1.json").read_text(encoding="utf-8"))
@@ -113,3 +113,27 @@ def test_failed_extraction_becomes_flagged_not_dropped():
     assert "extraction failed: the AI output was not valid JSON, needs a person to review" in f["reason"]
     before = {r["proposal"]: (r["status"], r["rank"], r["total"]) for r in triage(CRITERIA, FACTS)}
     assert {r["proposal"]: (r["status"], r["rank"], r["total"]) for r in rows if r["proposal"] != "F"} == before
+
+
+def test_weight_only_edit_rescores_but_fact_field_change_refuses(tmp_path):
+    def run(criteria):
+        path = tmp_path / "criteria.json"
+        path.write_text(json.dumps(criteria), encoding="utf-8")
+        return subprocess.run([sys.executable, str(HERE / "triage.py"), "--criteria", str(path),
+                               "--out", str(tmp_path / "r.json"), "--log", str(tmp_path / "log.jsonl")],
+                              capture_output=True, text=True)
+    v2 = copy.deepcopy(CRITERIA)
+    v2["criteria_version_id"] = "commercial_solar_v2"
+    weights = {c["key"]: c for c in v2["weighted"]}
+    weights["price"]["weight"], weights["timeline"]["weight"] = 20, 20
+    assert run(v2).returncode == 0
+    first = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
+    assert run(v2).returncode == 0 and json.loads((tmp_path / "r.json").read_text(encoding="utf-8")) == first
+    assert first[0]["proposal"] == "A" and first[0]["score"] == 98.2  # was 98.0 under v1
+    last = json.loads((tmp_path / "log.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert last["criteria_version_id"] == "commercial_solar_v2"
+    assert last["fact_schema_fingerprint"] == fact_schema_fingerprint(CRITERIA)
+    v3 = copy.deepcopy(v2)
+    v3["fields"]["completion_weeks"]["range"] = [1, 104]  # a fact field changed
+    refused = run(v3)
+    assert refused.returncode != 0 and "Refusing" in refused.stderr

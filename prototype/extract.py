@@ -17,6 +17,7 @@ import unicodedata
 from pathlib import Path
 
 from injection_scan import scan
+from triage import fact_schema_fingerprint
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
@@ -207,7 +208,8 @@ def main():
         print(f"{path.name}: " + (f"EXTRACTION FAILED ({error}); passed on as flagged" if error
                                   else f"extracted ({len(hits)} scanner hits)"))
 
-    facts = {"criteria_version_id": criteria["criteria_version_id"], "proposals": proposals}
+    facts = {"criteria_version_id": criteria["criteria_version_id"],
+             "fact_schema_fingerprint": fact_schema_fingerprint(criteria), "proposals": proposals}
     (out / "facts.json").write_text(json.dumps(facts, indent=2), encoding="utf-8")
     print(f"wrote {out / 'facts.json'}; review it (checkpoint 1), then: "
           f"python prototype/triage.py --facts {out / 'facts.json'} --out {out / 'ranking.json'}")

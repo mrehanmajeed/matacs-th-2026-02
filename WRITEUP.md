@@ -26,9 +26,9 @@ AI reads each proposal and pulls out the facts, each backed by a quote. Simple r
 
 ## 4. Changing criteria
 
-- Every save creates a new, read-only criteria version; each run is tied to its version, and scoring refuses facts confirmed under a different one.
+- Every save creates a new, read-only criteria version, and each run is tied to its version.
 - Existing scores keep their version and are marked "stale" when a newer one exists; nothing changes silently.
-- Rescoring reruns only the rules on stored facts, with no AI. If a new criterion needs a new fact, only that fact is re-read and confirmed at checkpoint 1.
+- A weight or threshold edit rescores the stored facts with rules only, no AI. The AI re-reads proposals only when the criteria need a fact not collected before; scoring refuses stored facts until those are confirmed at checkpoint 1.
 - The reviewer sees the rank changes between versions.
 - Once an award is recorded the run is locked; mid-review criteria changes need a reason and are logged.
 

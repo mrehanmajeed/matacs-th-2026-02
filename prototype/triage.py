@@ -22,6 +22,13 @@ def fact(proposal, field):
     return f.get("value"), usable
 
 
+def fact_schema_fingerprint(criteria):
+    """Hash of the fact field definitions only (names, types, ranges). Weight, method or threshold edits make a
+    new criteria version but keep this fingerprint, so stored facts can be rescored with rules only."""
+    fields = {n: [f["type"], f.get("range")] for n, f in criteria["fields"].items()}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()[:16]
+
+
 def validate_criteria(criteria):
     total = sum(c["weight"] for c in criteria["weighted"])
     if not math.isclose(total, 100):
@@ -197,7 +204,7 @@ def to_output(rows):
 
 def print_breakdown(criteria, rows):
     keys = [c["key"] for c in criteria["weighted"]]
-    print(f"criteria_version_id: {criteria['criteria_version_id']}")
+    print(f"criteria_version_id: {criteria['criteria_version_id']} | fact fields: {fact_schema_fingerprint(criteria)}")
     head = "".join(f"{c['key'][:10]:>11}" for c in criteria["weighted"])
     print(f"{'prop':<5}{'gates':<20}{head}{'total':>10}  status      rank")
     for r in rows:
@@ -219,14 +226,16 @@ def main():
     criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
     facts_bytes = Path(a.facts).read_bytes()
     facts = json.loads(facts_bytes)
-    if facts.get("criteria_version_id") != criteria["criteria_version_id"]:
-        sys.exit(f"Refusing to run: facts were confirmed under {facts.get('criteria_version_id')!r} but the criteria "
-                 f"are {criteria['criteria_version_id']!r}. Re-confirm the facts for this version first.")
+    fingerprint = fact_schema_fingerprint(criteria)
+    if facts.get("fact_schema_fingerprint") != fingerprint:
+        sys.exit(f"Refusing to run: the facts were confirmed under fact fields {facts.get('fact_schema_fingerprint')!r}"
+                 f" but the criteria now define {fingerprint!r}. Re-confirm the facts for the new fields first.")
     rows = triage(criteria, facts)
     print_breakdown(criteria, rows)
     Path(a.out).write_text(json.dumps(to_output(rows), indent=2) + "\n", encoding="utf-8", newline="\n")
     record = {"timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(), "user": getpass.getuser(),
-              "criteria_version_id": criteria["criteria_version_id"], "facts_file": str(a.facts),
+              "criteria_version_id": criteria["criteria_version_id"], "fact_schema_fingerprint": fingerprint,
+              "facts_file": str(a.facts),
               "facts_sha256": hashlib.sha256(facts_bytes).hexdigest(),
               "bids": {r["proposal"]: {"status": r["status"], "total": r["total"], "rank": r["rank"],
                                        "provisional_position": r.get("provisional_position"), "reason": r["reason"]}
