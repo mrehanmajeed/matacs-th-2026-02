@@ -1,0 +1,79 @@
+// Source for diagram/process-flow.png
+// Render: dot -Tpng -Gdpi=110 prototype/flow.dot -o diagram/process-flow.png
+digraph triage {
+  graph [rankdir=TB, fontname="Arial", fontsize=26, nodesep=0.35, ranksep=0.5, pad=0.4, newrank=true,
+         label=<<b>AI proposal triage: from criteria setup to award</b>>, labelloc=t];
+  node  [fontname="Arial", fontsize=16, margin="0.14,0.08", penwidth=1.6, style=filled];
+  edge  [fontname="Arial", fontsize=14, penwidth=1.4, color="#444444", arrowsize=0.8];
+
+  // Step types: RULE = blue box, AI = purple hexagon, HUMAN = orange oval, outcome = grey note
+  node [shape=box, fillcolor="#DBEAFE", color="#1D4ED8"];
+
+  subgraph cluster_flow {
+    label=<<i>Every step writes to the audit log (bottom)</i>>; labeljust=l; fontsize=17;
+    style="rounded,dashed"; color="#6B7280"; margin=18;
+
+    admin  [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
+            label=<<b>0. Admin sets criteria</b><br/>HUMAN + RULE<br/><font point-size="14">gates, weights (rule: sum = 100),<br/>scoring method per criterion.<br/>Each save = new locked version</font>>];
+    upload [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
+            label=<<b>1. Upload</b><br/>HUMAN<br/><font point-size="14">reviewer adds PDFs, picks category;<br/>run pins the criteria version</font>>];
+    intake [label=<<b>2. Intake</b><br/>RULE<br/><font point-size="14">file hash + duplicate check,<br/>text extraction / OCR,<br/>text-quality check</font>>];
+    scan   [label=<<b>3. Suspicious-instruction scan</b><br/>RULE<br/><font point-size="14">keyword / pattern search for text<br/>aimed at automated reviewers;<br/>any hit flags the proposal (step 9)</font>>];
+    extract [shape=hexagon, fillcolor="#EDE9FE", color="#6D28D9",
+            margin="0.02,0.02", label=<<b>4. Fact extraction</b><br/>AI<br/><font point-size="14">one call per file; pinned model + prompt;<br/>JSON facts with status + verbatim<br/>evidence. Never scores or ranks</font>>];
+    validate [label=<<b>5. Validation</b><br/>RULE<br/><font point-size="14">schema check, quote must appear<br/>in source, plausible numbers, CAD</font>>];
+    cp1    [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
+            label=<<b>6. Checkpoint 1: fact review</b><br/>HUMAN<br/><font point-size="14">confirm unclear / missing / unverified<br/>facts against evidence; edits need a reason</font>>];
+    gates  [label=<<b>7. Mandatory gates</b><br/>RULE<br/><font point-size="14">licence; WSIB + insurance.<br/>Missing info never auto-rejects</font>>];
+    score  [label=<<b>8. Weighted scoring</b><br/>RULE<br/><font point-size="14">fixed formulas, eligible bids only</font>>];
+    status [label=<<b>9. Status, rank, reasons</b><br/>RULE<br/><font point-size="14">flag checks, tie-breaks,<br/>template reasons (no AI)</font>>];
+    cp2    [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
+            label=<<b>10. Checkpoint 2: ranking review</b><br/>HUMAN<br/><font point-size="14">resolve flags, see per-criterion points<br/>+ evidence; overrides need a reason</font>>];
+    cp3    [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
+            label=<<b>11. Checkpoint 3: award</b><br/>HUMAN<br/><font point-size="14">a person makes the final decision;<br/>the run is then locked</font>>];
+
+    node [shape=note, color="#4B5563", fontsize=15];
+    inel   [fillcolor="#FEE2E2", label=<<b>Ineligible</b><br/><font point-size="14">explicit gate fail; not scored</font>>];
+    flag   [fillcolor="#FEF9C3", label=<<b>Flagged</b><br/><font point-size="14">held for a human; provisional score,<br/>no rank</font>>];
+    ranked [fillcolor="#DCFCE7", label=<<b>Ranked list</b><br/><font point-size="14">rank 1..n, each with<br/>a one-line reason</font>>];
+
+    // Row 1 (left to right), row 2 (right to left), row 3 outcomes
+    { rank=same; admin; upload; intake; scan; }
+    { rank=same; extract; validate; cp1; }
+    { rank=same; gates; score; status; }
+    { rank=same; inel; flag; ranked; }
+    { rank=same; cp2; cp3; }
+
+    admin -> upload -> intake -> scan -> extract;
+    extract -> validate;
+    validate -> cp1 [label=" facts + evidence "];
+    cp1 -> gates;
+    gates -> score [label=" pass or\n unconfirmed "];
+    score -> status;
+    gates -> inel [label=" explicit fail "];
+    status -> flag [label=" any flag "];
+    status -> ranked [label=" clean "];
+    scan -> flag [style=invis, constraint=false];  // keeps row order; the hit path is described in step 3
+    flag -> cp2;
+    ranked -> cp2;
+    inel -> cp2 [style=dotted, label=" visible to reviewer "];
+    cp2 -> cp3;
+  }
+
+  audit [shape=box, style="filled,rounded", fillcolor="#F3F4F6", color="#374151", fontsize=16, width=17,
+         label=<<b>Audit log (spans all steps)</b><br/>user + timestamp | file hashes | criteria version | model id + prompt version/hash | raw AI output<br/>validated facts | human edits and overrides with reasons | scores and reasons | final award decision>];
+  cp2 -> audit [style=invis];
+  cp3 -> audit [style=invis];
+  audit -> l_human [style=invis];
+
+  subgraph cluster_legend {
+    label=<<b>Legend</b>>; fontsize=16; style=rounded; color="#9CA3AF"; margin=12;
+    node [fontsize=15, width=2.2];
+    l_ai    [shape=hexagon, fillcolor="#EDE9FE", color="#6D28D9", label="AI step"];
+    l_rule  [shape=box, fillcolor="#DBEAFE", color="#1D4ED8", label="Rule / code step"];
+    l_human [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C", label="Human checkpoint"];
+    l_out   [shape=note, fillcolor="#FFFFFF", color="#4B5563", label="Outcome"];
+    l_ai -> l_rule -> l_human -> l_out [style=invis];
+  }
+  { rank=same; l_ai; l_rule; l_human; l_out; }
+}

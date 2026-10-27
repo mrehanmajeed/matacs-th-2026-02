@@ -9,7 +9,7 @@ Small, readable sketch of the design. Python 3.10+. `triage.py` needs no install
 | `triage.py` | Rules only: gates → scores → status → tie-breaks → template reasons. Prints the breakdown and writes `ranking.json`. |
 | `extract.py` | Optional live AI step: `samples_local/*.txt` → extraction prompt from `PROMPTS.md` → schema check → verbatim-evidence and range checks → `outputs_local/facts.json` + `audit.jsonl`. |
 | `injection_scan.py` | Rule-based scan for text aimed at automated reviewers; runs on the raw text, separately from the AI. |
-| `render_diagram.py` | Draws `diagram/process-flow.png`. |
+| `flow.dot` | Graphviz source for `diagram/process-flow.png` (`dot -Tpng -Gdpi=110 prototype/flow.dot -o diagram/process-flow.png`). |
 | `test_triage.py` | Tests: reproduces `ranking.json`, B fails the licence gate, weights must sum to 100, scanner catches an injected instruction, weight change rescoring, `PROMPTS.md` in sync with code. |
 
 ```
