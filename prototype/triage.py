@@ -1,11 +1,15 @@
 """Deterministic triage: mandatory gates -> weighted scoring -> status -> ranking -> template reasons.
 
-No AI in this file. Stdlib only.
-Usage: python prototype/triage.py [--criteria FILE] [--facts FILE] [--out FILE]
+No AI in this file. Stdlib only. Each run is appended to a local, gitignored run log.
+Usage: python prototype/triage.py [--criteria FILE] [--facts FILE] [--out FILE] [--log FILE]
 """
 import argparse
+import datetime
+import getpass
+import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -209,13 +213,27 @@ def main():
     ap.add_argument("--criteria", default=HERE / "criteria" / "commercial_solar_v1.json")
     ap.add_argument("--facts", default=HERE / "facts" / "sample_facts.json")
     ap.add_argument("--out", default=HERE.parent / "ranking.json")
+    ap.add_argument("--log", default=HERE / "outputs_local" / "triage_runs.jsonl", help="local run log (gitignored)")
     a = ap.parse_args()
     criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
-    facts = json.loads(Path(a.facts).read_text(encoding="utf-8"))
+    facts_bytes = Path(a.facts).read_bytes()
+    facts = json.loads(facts_bytes)
+    if facts.get("criteria_version_id") != criteria["criteria_version_id"]:
+        sys.exit(f"Refusing to run: facts were confirmed under {facts.get('criteria_version_id')!r} but the criteria "
+                 f"are {criteria['criteria_version_id']!r}. Re-confirm the facts for this version first.")
     rows = triage(criteria, facts)
     print_breakdown(criteria, rows)
     Path(a.out).write_text(json.dumps(to_output(rows), indent=2) + "\n", encoding="utf-8", newline="\n")
-    print(f"wrote {a.out}")
+    record = {"timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(), "user": getpass.getuser(),
+              "criteria_version_id": criteria["criteria_version_id"], "facts_file": str(a.facts),
+              "facts_sha256": hashlib.sha256(facts_bytes).hexdigest(),
+              "bids": {r["proposal"]: {"status": r["status"], "total": r["total"], "rank": r["rank"],
+                                       "provisional_position": r.get("provisional_position"), "reason": r["reason"]}
+                       for r in rows}}
+    Path(a.log).parent.mkdir(parents=True, exist_ok=True)
+    with open(a.log, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record) + "\n")
+    print(f"wrote {a.out}; run logged to {a.log}")
 
 
 if __name__ == "__main__":

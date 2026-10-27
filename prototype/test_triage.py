@@ -19,7 +19,8 @@ EXPECTED = {"A": (98.0147, 1, "ranked"), "E": (84.8035, 2, "ranked"),
 
 def test_reproduces_ranking_json_exactly(tmp_path):
     out = tmp_path / "ranking.json"
-    subprocess.run([sys.executable, str(HERE / "triage.py"), "--out", str(out)], check=True, capture_output=True)
+    subprocess.run([sys.executable, str(HERE / "triage.py"), "--out", str(out), "--log", str(tmp_path / "runs.jsonl")],
+                   check=True, capture_output=True)
     assert out.read_text(encoding="utf-8") == (ROOT / "ranking.json").read_text(encoding="utf-8")  # newline-agnostic
     rows = {r["proposal"]: r for r in triage(CRITERIA, FACTS)}
     for k, (total, rank, status) in EXPECTED.items():
