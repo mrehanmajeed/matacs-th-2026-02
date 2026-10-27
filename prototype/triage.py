@@ -78,7 +78,10 @@ def phrase(crit, kind, proposal, cons, eligible=False):
 
 def triage(criteria, facts):
     validate_criteria(criteria)
-    cons, props = criteria["constraints"], facts["proposals"]
+    cons = criteria["constraints"]
+    # A failed extraction has no facts to score: flag it for a person, keep it out of the comparison pool.
+    failed = {k: p["extraction_error"] for k, p in facts["proposals"].items() if p.get("extraction_error")}
+    props = {k: p for k, p in facts["proposals"].items() if k not in failed}
     rows = {}
     for k in sorted(props):
         gates = {g["key"]: gate(props[k], g, cons) for g in criteria["mandatory"]}
@@ -97,7 +100,7 @@ def triage(criteria, facts):
         r["flags"] += [f"intake check: {note}" for note in p.get("intake_flags", [])]
         for field, f in p["facts"].items():
             if f.get("verified", True) is False:
-                r["flags"].append(f"the evidence for {field} was not found verbatim in the source")
+                r["flags"].append(f"{field} unverified ({', '.join(f.get('verification_issues', ['check failed']))})")
 
     leaders = {}  # criterion key -> (best letters, unique-worst letter) among unflagged pool members
     overall = {c["key"]: score_criterion(props, c, cons) for c in criteria["weighted"]}  # incl. ineligible bids
@@ -174,7 +177,11 @@ def triage(criteria, facts):
             if flag is None and c["method"] != "checklist" and math.isclose(sub, 1):
                 despite.append(phrase(c, "best", p, cons))
         r["reason"] = "; ".join(fails) + "; not scored" + (f" despite {join(despite)}" if despite else "") + "."
-    return [rows[k] for k in ranked + flagged + ineligible]
+    for k, cause in sorted(failed.items()):
+        rows[k] = {"proposal": k, "gates": {}, "sub": {}, "points": {}, "flags": [f"extraction failed: {cause}"],
+                   "total": None, "status": "flagged", "rank": None,
+                   "reason": f"Held for review: extraction failed: {cause}, needs a person to review."}
+    return [rows[k] for k in ranked + flagged + sorted(failed) + ineligible]
 
 
 def to_output(rows):

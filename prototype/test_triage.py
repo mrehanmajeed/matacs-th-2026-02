@@ -94,3 +94,17 @@ def test_prompts_md_matches_code():
     _, template = load_prompts()
     assert json.dumps(build_schema(CRITERIA), indent=2) in md
     assert render_user(template, CRITERIA, "{{PROPOSAL_ID}}", "{{PROPOSAL_TEXT}}") in md
+
+
+def test_failed_extraction_becomes_flagged_not_dropped():
+    from extract import build_schema, to_proposal
+    entry = to_proposal("{not json", "source text", CRITERIA, build_schema(CRITERIA), [], [])
+    assert entry["extraction_error"] == "the AI output was not valid JSON"
+    facts = copy.deepcopy(FACTS)
+    facts["proposals"]["F"] = entry
+    rows = triage(CRITERIA, facts)
+    f = next(r for r in to_output(rows) if r["proposal"] == "F")
+    assert (f["status"], f["rank"], f["score"]) == ("flagged", None, None)
+    assert "extraction failed: the AI output was not valid JSON, needs a person to review" in f["reason"]
+    before = {r["proposal"]: (r["status"], r["rank"], r["total"]) for r in triage(CRITERIA, FACTS)}
+    assert {r["proposal"]: (r["status"], r["rank"], r["total"]) for r in rows if r["proposal"] != "F"} == before

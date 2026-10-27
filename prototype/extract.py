@@ -81,23 +81,47 @@ def norm(s):
 
 
 def validate(data, source, criteria):
-    """Rule checks after the AI: verbatim evidence, plausible ranges, CAD. Failures mark the fact unverified."""
+    """Rule checks after the AI: verbatim quote, plausible range, non-CAD currency. Failures mark the fact
+    unverified and record the cause, which triage.py puts in the flag."""
     src = norm(source)
     for name, f in data["facts"].items():
         if f["value"] is None:
             continue
         problems = []
         if not f["evidence"] or norm(f["evidence"]) not in src:
-            problems.append("evidence quote not found verbatim in source")
+            problems.append("quote not found in the source")
         lo, hi = criteria["fields"][name].get("range", (None, None))
         if lo is not None and not isinstance(f["value"], bool) and not lo <= f["value"] <= hi:
-            problems.append(f"value outside plausible range {lo}-{hi}")
+            problems.append(f"value out of range ({lo}-{hi})")
         if name.endswith("_cad") and f["evidence"] and FOREIGN_CURRENCY.search(f["evidence"]):
-            problems.append("currency not confirmed as CAD")
+            problems.append("price quoted in a non-CAD currency")
         if problems:
             f["verified"] = False
-            f["note"] = "; ".join(filter(None, [f["note"], *problems]))
+            f["verification_issues"] = problems
     return data
+
+
+def to_proposal(raw, source, criteria, schema, intake, hits, error=None):
+    """Facts entry for one file. Any failure (stop, bad JSON, schema mismatch) becomes an extraction_error,
+    so triage.py flags the bid for a person instead of dropping it."""
+    import jsonschema
+    if error is None:
+        try:
+            data = json.loads(raw)
+            jsonschema.validate(data, schema)
+        except json.JSONDecodeError:
+            error = "the AI output was not valid JSON"
+        except jsonschema.ValidationError as e:
+            error = f"the AI output did not match the schema ({e.message[:60]})"
+    scan_notes = [f"rule scan matched \"{h['match']}\"" for h in hits]
+    if error:
+        return {"extraction_error": error, "intake_flags": intake, "suspicious_instructions": scan_notes,
+                "unsupported_claims": [], "facts": {}}
+    data = validate(data, source, criteria)
+    return {"intake_flags": intake,
+            "suspicious_instructions": [s["reason"] for s in data["suspicious_instructions"]] + scan_notes,
+            "unsupported_claims": [c["quote"] for c in data["unsupported_claims"]],
+            "facts": data["facts"]}
 
 
 def load_env():
@@ -125,11 +149,10 @@ def main():
     if not files:
         sys.exit(f"No proposal .txt files in {a.samples}. Add one file per proposal, named by letter (A.txt).")
 
-    import anthropic  # only the live path needs these
-    import jsonschema
+    import anthropic  # only the live path needs it
 
     model = env.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
-    # Temperature 0 only where the pinned model supports it (set ANTHROPIC_TEMPERATURE=0); otherwise model default.
+    # Config setting: ANTHROPIC_TEMPERATURE=0 for models that accept it; unset = the model's default sampling.
     sampling = {"temperature": float(env["ANTHROPIC_TEMPERATURE"])} if env.get("ANTHROPIC_TEMPERATURE") else {}
     criteria = json.loads(Path(a.criteria).read_text(encoding="utf-8"))
     system, template = load_prompts()
@@ -154,7 +177,7 @@ def main():
 
         # Same file + same prompt + same model -> reuse the stored output instead of calling the AI again.
         cache = out / "cache" / f"{sha[:16]}_{prompt_sha[:12]}_{model}.json"
-        hit = cache.exists()
+        hit, raw, error = cache.exists(), None, None
         if hit:
             raw = cache.read_text(encoding="utf-8")
         else:
@@ -164,30 +187,25 @@ def main():
                     messages=[{"role": "user", "content": render_user(template, criteria, pid, text)}],
                     output_config={"format": {"type": "json_schema", "schema": schema}}, **sampling)
             except anthropic.APIError as e:
-                print(f"{path.name}: API error, skipped: {e}")
-                continue
-            if resp.stop_reason != "end_turn":
-                print(f"{path.name}: stopped with {resp.stop_reason}, skipped")
-                continue
-            raw = next(b.text for b in resp.content if b.type == "text")
-            cache.write_text(raw, encoding="utf-8")
-        data = json.loads(raw)
-        jsonschema.validate(data, schema)
-        data = validate(data, text, criteria)
+                error = f"API error ({type(e).__name__})"
+            else:
+                if resp.stop_reason != "end_turn":
+                    error = f"the model stopped early ({resp.stop_reason})"
+                else:
+                    raw = next(b.text for b in resp.content if b.type == "text")
+                    cache.write_text(raw, encoding="utf-8")
+        proposals[pid] = to_proposal(raw, text, criteria, schema, intake, hits, error)
+        error = proposals[pid].get("extraction_error")
 
-        proposals[pid] = {
-            "intake_flags": intake,
-            "suspicious_instructions": [s["reason"] for s in data["suspicious_instructions"]]
-                                       + [f"rule scan matched \"{h['match']}\"" for h in hits],
-            "unsupported_claims": [c["quote"] for c in data["unsupported_claims"]],
-            "facts": data["facts"]}
         record = {"timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(), "user": getpass.getuser(),
                   "file": path.name, "file_sha256": sha, "criteria_version_id": criteria["criteria_version_id"],
                   "model": model, "prompt_version": PROMPT_VERSION, "prompt_sha256": prompt_sha,
-                  "cache_hit": hit, "raw_output": raw, "scanner_hits": hits, "validated": proposals[pid]}
+                  "cache_hit": hit, "raw_output": raw, "error": error, "scanner_hits": hits,
+                  "validated": proposals[pid]}
         with open(out / "audit.jsonl", "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
-        print(f"{path.name}: extracted ({len(hits)} scanner hits)")
+        print(f"{path.name}: " + (f"EXTRACTION FAILED ({error}); passed on as flagged" if error
+                                  else f"extracted ({len(hits)} scanner hits)"))
 
     facts = {"criteria_version_id": criteria["criteria_version_id"], "proposals": proposals}
     (out / "facts.json").write_text(json.dumps(facts, indent=2), encoding="utf-8")
