@@ -1,24 +1,12 @@
 # MATACS-TH-2026-02: AI Proposal Triage Design
 
-**Name:** <!-- TODO(Rehan): full name -->
-**Reference:** MATACS-TH-2026-02
-**Time actually spent:** <!-- TODO(Rehan): honest total -->
+- **Name:** Muhammad Rehan Majeed
+- **Reference:** MATACS-TH-2026-02
+- **Time actually spent:** About 45 min (reading the brief, designing with AI assistance, supervising the build and reviewing every result)
 
 ## How I used AI tools
 
-<!-- TODO(Rehan): 2–3 sentences in your own words, incl. one place you disagreed with/corrected the AI and why -->
-
-<!--
-Candidate disagreement / correction points that actually came up while building this (pick one, write it in your own words, then delete this comment):
-1. Temperature 0: the plan locked "temperature 0" for extraction, but the small model chosen for this step doesn't accept it. Temperature is now a config setting (0 for models that accept it), and repeatability rests on stored, human-confirmed facts and rule-based scoring instead.
-2. Scanner keywords vs leak check: the plan listed a scanner keyword that its own leak check bans from the repo. The regex was written as a pattern (pre[\s-]?approv...) so the scanner still catches it without the literal string being committed.
-3. Expected totals: the plan's table (E 84.8035, C 77.0608) summed sub-scores already rounded to 4 dp. The code keeps full precision (84.8034, 77.0609); the published 1-decimal scores are identical.
-4. Flagged bids: the first version put a provisional score in ranking.json for flagged bids. I changed it to score null to match the brief's example format, keeping the provisional total in the reason text and the breakdown table.
-5. Reasons: the plan's suggested wording (e.g. "second-lowest eligible price") was not copied. The template only uses a superlative where a bid strictly leads or trails on a measure (an independent check caught an earlier "longest warranties" claim when panel warranties tied), so every reason is generated from the numbers.
-6. Team-and-approach items that are not stated count as "no credit" without a flag (unlike missing price, weeks, experience or warranty); otherwise every bid lacking a monitoring plan would be held for review.
-7. Model: the AI coding assistant's default was the largest model; the design uses the small current model for cost, since the task is extraction only.
-8. Relative scoring: the plan stated that adding or removing a bid never changes the other bids' order. An independent check found a counter-example (two bids swap places when a third is added), so the README now says the order can change and the bid set is rescored like a criteria change.
--->
+I used Claude (chat) to break down the brief and draft the design and scoring rules, and Claude Code to build the repository, prototype and diagram from that spec. I reviewed each result, made the final calls, and had a separate, fresh AI instance audit the work against the brief. One correction: the original design claimed that adding or removing a bid never changes the order of the others, but the audit found a counter-example (two bids swap places when a new bid raises the "best" value on a criterion), so I dropped that claim and now treat any change to the bid set like a criteria change: rescore and show the rank changes. I also overrode the plan to give flagged bids a provisional score in `ranking.json`, setting it to null to match the brief's example and keeping the provisional total in the reason.
 
 ## Files
 
@@ -72,7 +60,7 @@ Bids are compared only with other eligible bids (see Terms above), so B's low pr
 
 | Criterion (weight) | Rule |
 |---|---|
-| Licence (gate) | The bidder itself must hold the licence and name it. Subcontractor → fail. Missing/unclear → flag. |
+| Licence (gate) | The bidder itself must hold the licence and state it in the proposal. Subcontractor → fail. Missing/unclear → flag. |
 | WSIB + $5M insurance (gate) | Both confirmed. Missing/unclear → flag. |
 | Experience (30) | qualifying installs ÷ most qualifying installs among eligible bids. Not stated → 0 + flag. |
 | Price (25) | lowest eligible price ÷ this price. Over $260,000 or not stated → 0 + flag. |
@@ -87,7 +75,7 @@ Each rule gives a share between 0 and 1; the share is multiplied by the weight a
 ```
 python prototype/triage.py                          # no installs needed; prints the breakdown + review notes, writes ranking.json
 pip install -r prototype/requirements.txt
-pytest                                              # 9 tests
+pytest                                              # 12 tests
 cp .env.example .env                                # optional live path: add your key first
 python prototype/extract.py                         # reads prototype/samples_local/*.txt, writes prototype/outputs_local/
 ```
