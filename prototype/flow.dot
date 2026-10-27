@@ -10,7 +10,7 @@ digraph triage {
   node [shape=box, fillcolor="#DBEAFE", color="#1D4ED8"];
 
   subgraph cluster_flow {
-    label=<<i>Every step writes to the audit log (bottom)</i>>; labeljust=l; fontsize=17;
+    label=<<i>Production: every step writes to the audit log (bottom). Prototype: extraction and each scoring run are logged.</i>>; labeljust=l; fontsize=17;
     style="rounded,dashed"; color="#6B7280"; margin=18;
 
     admin  [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
@@ -21,7 +21,7 @@ digraph triage {
     scan   [label=<<b>3. Suspicious-instruction scan</b><br/>RULE<br/><font point-size="14">keyword / pattern search for text<br/>aimed at automated reviewers;<br/>any hit flags the proposal (step 9)</font>>];
     extract [shape=hexagon, fillcolor="#EDE9FE", color="#6D28D9",
             margin="0.02,0.02", label=<<b>4. Fact extraction</b><br/>AI<br/><font point-size="14">one call per file; pinned model + prompt;<br/>JSON facts with status + verbatim<br/>evidence. Never scores or ranks</font>>];
-    validate [label=<<b>5. Validation</b><br/>RULE<br/><font point-size="14">schema check, quote must appear<br/>in source, plausible numbers, CAD</font>>];
+    validate [label=<<b>5. Validation</b><br/>RULE<br/><font point-size="14">schema check, quote must appear<br/>in source, plausible numbers;<br/>a price in another currency is flagged</font>>];
     cp1    [shape=ellipse, fillcolor="#FFEDD5", color="#C2410C",
             label=<<b>6. Checkpoint 1: fact review</b><br/>HUMAN<br/><font point-size="14">confirm unclear / missing / unverified<br/>facts against evidence; edits need a reason</font>>];
     gates  [label=<<b>7. Mandatory gates</b><br/>RULE<br/><font point-size="14">licence; WSIB + insurance.<br/>Missing info never auto-rejects</font>>];
@@ -34,14 +34,15 @@ digraph triage {
 
     node [shape=note, color="#4B5563", fontsize=15];
     inel   [fillcolor="#FEE2E2", label=<<b>Ineligible</b><br/><font point-size="14">explicit gate fail; not scored</font>>];
-    flag   [fillcolor="#FEF9C3", label=<<b>Flagged</b><br/><font point-size="14">held for a human; no rank, score null<br/>(provisional total in the reason)</font>>];
     ranked [fillcolor="#DCFCE7", label=<<b>Ranked list</b><br/><font point-size="14">rank 1..n, each with<br/>a one-line reason</font>>];
+    flag   [fillcolor="#FEF9C3", label=<<b>Flagged</b><br/><font point-size="14">held for a human; no rank, score null<br/>(provisional total in the reason)</font>>];
 
     // Row 1 (left to right), row 2 (right to left), row 3 outcomes
     { rank=same; admin; upload; intake; scan; }
     { rank=same; extract; validate; cp1; }
     { rank=same; gates; score; status; }
-    { rank=same; inel; flag; ranked; }
+    { rank=same; inel; ranked; flag; }
+    inel -> ranked -> flag [style=invis];  // fixes left-to-right order of outcomes
     { rank=same; cp2; cp3; }
 
     admin -> upload -> intake -> scan -> extract;
@@ -53,7 +54,13 @@ digraph triage {
     gates -> inel [label=" explicit fail "];
     status -> flag [label=" any flag "];
     status -> ranked [label=" clean "];
-    scan -> flag [style=invis, constraint=false];  // keeps row order; the hit path is described in step 3
+    // Exception and re-run routes (dashed)
+    edge [style=dashed, color="#B45309", fontcolor="#B45309"];
+    scan -> flag [label=" any hit "];
+    extract -> flag [label=" extraction failed "];
+    cp2 -> gates [label=" flag resolved:\n rescore (rules only) "];
+    admin -> gates [label=" criteria edited: new version,\n rescore (no AI) "];
+    edge [style=solid, color="#444444", fontcolor="#000000"];
     flag -> cp2;
     ranked -> cp2;
     inel -> cp2 [style=dotted, label=" visible to reviewer "];
@@ -61,7 +68,7 @@ digraph triage {
   }
 
   audit [shape=box, style="filled,rounded", fillcolor="#F3F4F6", color="#374151", fontsize=16, width=17,
-         label=<<b>Audit log (spans all steps)</b><br/>user + timestamp | file hashes | criteria version | model id + prompt version/hash | raw AI output<br/>validated facts | human edits and overrides with reasons | scores and reasons | final award decision>];
+         label=<<b>Audit log (production: spans all steps; prototype: extraction + each scoring run)</b><br/>user + timestamp | file hashes | criteria version | model id + prompt version/hash | raw AI output<br/>validated facts | human edits and overrides with reasons | scores and reasons | final award decision>];
   cp2 -> audit [style=invis];
   cp3 -> audit [style=invis];
   audit -> l_human [style=invis];
