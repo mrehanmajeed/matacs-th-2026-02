@@ -34,7 +34,7 @@
   "mandatory": [
     {
       "key": "M1",
-      "label": "Provincial electrical contractor licence, held by the bidder and stated in the proposal",
+      "label": "Provincial electrical contractor licence: the bidder itself holds it and names it in the bid",
       "short": "licence",
       "require": [
         {"field": "licence_holder", "equals": "bidder"}
